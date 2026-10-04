@@ -370,6 +370,9 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
       <button id="btnScores" type="button"><span class="lbl">Fix scores</span><kbd>S</kbd></button>
       <hr>
       <button id="btnMusic" type="button"><span class="lbl">Play thinking music</span><kbd>M</kbd></button>
+      <button id="btnPickMusic" type="button"><span class="lbl">Choose music file</span></button>
+      <button id="btnClearMusic" type="button" hidden><span class="lbl">Use built-in music</span></button>
+      <input type="file" id="musicFile" accept="audio/*" hidden>
       <button id="btnSound" type="button" aria-pressed="true"><span class="lbl">Sound on</span></button>
       <button id="btnFull" type="button"><span class="lbl">Full screen</span></button>
       <button id="btnReset" type="button"><span class="lbl">New game</span></button>
@@ -606,19 +609,51 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const money = n => (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString();
 
 /* ---------- Sound ----------
-   Thinking music: if a file called thinking-music.mp3 sits next to this page, it plays that.
-   Otherwise it plays an original tune built with Web Audio. */
+   Thinking music, first match wins:
+   1. A file the host picked with "Choose music file" (kept in this browser only, never uploaded).
+   2. A file called thinking-music.mp3 next to this page.
+   3. An original tune built with Web Audio. */
 const MUSIC_FILE = "thinking-music.mp3";
+const MusicStore = {   // IndexedDB holds the picked file so it survives a reload
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open("ux-jeopardy", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("files");
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  },
+  async run(mode, fn) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction("files", mode), req = fn(tx.objectStore("files"));
+      tx.oncomplete = () => res(req && req.result); tx.onerror = () => rej(tx.error);
+    });
+  },
+  get() { return this.run("readonly", st => st.get("music")).catch(() => null); },
+  set(blob) { return this.run("readwrite", st => st.put(blob, "music")).catch(() => {}); },
+  clear() { return this.run("readwrite", st => st.delete("music")).catch(() => {}); }
+};
 const Sound = (() => {
   let ctx = null, music = null, timer = null, tick = null;
   let on = true;
   try { on = localStorage.getItem("ux-jeopardy-sound") !== "off"; } catch (e) {}
   const track = new Audio();
-  let trackOk = false;
+  let trackOk = false, custom = false, blobUrl = null;
   track.preload = "auto";
-  track.addEventListener("canplaythrough", () => { trackOk = true; }, { once: true });
+  track.addEventListener("canplaythrough", () => { trackOk = true; });
   track.addEventListener("error", () => { trackOk = false; });
-  if (location.protocol !== "about:") track.src = MUSIC_FILE;
+  function useFile(blob) {
+    trackOk = false;
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    blobUrl = blob ? URL.createObjectURL(blob) : null;
+    custom = !!blob;
+    if (blob) track.src = blobUrl;
+    else if (location.protocol !== "about:") track.src = MUSIC_FILE;
+    else track.removeAttribute("src");
+    track.load();
+  }
+  (window.indexedDB ? MusicStore.get() : Promise.resolve(null)).then(b => useFile(b || null));
+  async function setMusic(blob) { useFile(blob); blob ? await MusicStore.set(blob) : await MusicStore.clear(); }
 
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
   function audio() {
@@ -687,7 +722,7 @@ const Sound = (() => {
     if (!on) stopMusic();
     return on;
   }
-  return { startMusic, stopMusic, right, wrong, dailyDouble, win, toggle, prime, get on() { return on; }, get playing() { return !!timer; } };
+  return { startMusic, stopMusic, setMusic, get custom() { return custom; }, right, wrong, dailyDouble, win, toggle, prime, get on() { return on; }, get playing() { return !!timer; } };
 })();
 
 function runTimer(seconds) {
@@ -833,6 +868,8 @@ function toggleMenu(force) {
   const list = $("#menuList"), open = force ?? list.hidden;
   list.hidden = !open; $("#menu").classList.toggle("open", open); $("#menuBtn").setAttribute("aria-expanded", open);
   setLabel("#btnMusic", Sound.playing ? "Stop music" : "Play thinking music");
+  setLabel("#btnPickMusic", Sound.custom ? "Change music file" : "Choose music file");
+  $("#btnClearMusic").hidden = !Sound.custom;
 }
 document.addEventListener("fullscreenchange", () => setLabel("#btnFull", document.fullscreenElement ? "Exit full screen" : "Full screen"));
 document.addEventListener("pointerdown", e => { if (!e.target.closest("#menu") && !$("#menuList").hidden) toggleMenu(false); });
@@ -1103,6 +1140,8 @@ document.addEventListener("click", e => {
   if (t.id === "deckPrev") return deckStep(-1);
   if (t.id === "deckNext") return deckStep(1);
   if (t.id === "deckOnly") { view.only = !view.only; view.i = 0; return drawDeck(); }
+  if (t.id === "btnPickMusic") return $("#musicFile").click();
+  if (t.id === "btnClearMusic") return Sound.setMusic(null);
   if (t.id === "btnMusic") {
     if (Sound.playing) return Sound.stopMusic();
     Sound.prime(); return Sound.startMusic(30);
@@ -1193,6 +1232,12 @@ document.addEventListener("keydown", e => {
   if (sel && !e.ctrlKey && !e.metaKey && !e.altKey && state && !$("#game").hidden && (!view || view.kind)) {
     e.preventDefault(); $(sel).click();
   }
+});
+
+$("#musicFile").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (f) Sound.setMusic(f);
+  e.target.value = "";
 });
 
 /* ---------- Boot ---------- */
