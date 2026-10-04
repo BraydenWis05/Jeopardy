@@ -823,7 +823,7 @@ function lessonCard(item, where) {
     <h2>${esc(topic(item))}</h2>
     ${where ? `<p class="where">${esc(where)}</p>` : ""}
     <p>${esc(item.note)}</p>
-    <p class="ask"><b>Ask the class:</b> ${esc(item.ask)}</p>
+    <p class="ask">${esc(item.ask)}</p>
     <p class="src">Source: ${esc(item.source)}</p>
   </article>`;
 }
@@ -940,8 +940,7 @@ function drawOverlay() {
       break;
     case "teach":
     case "review":
-      body = `${view.step === "teach" ? `<p class="status taught">Nobody got it. Teach this one.</p>` : ""}
-        ${lessonCard(clue)}
+      body = `${lessonCard(clue)}
         <div class="actions"><button class="btn primary big" data-close type="button">Back to board</button></div>`;
       break;
   }
@@ -1005,7 +1004,7 @@ function rulesSlides() {
 function lessonSlide(item, head, val) {
   return { head, val, html: `<div class="slide"><h2>${esc(topic(item))}</h2>
     <p class="body">${esc(item.note)}</p>
-    <p class="ask"><b>Ask the class:</b> ${esc(item.ask)}</p>
+    <p class="ask">${esc(item.ask)}</p>
     <p class="src">Source: ${esc(item.source)}</p></div>` };
 }
 function presentSlides(onlyMissed) {
