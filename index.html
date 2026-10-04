@@ -61,6 +61,20 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .btn.primary { background: var(--gold); color: #000; }
 .btn.big { padding: 12px 22px; font-size: 20px; }
 .btn.right { background: #0d6b45; }
+.host { position: fixed; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); z-index: 2; }
+.host-tab {
+  opacity: .5; border: 1px solid var(--rim); background: var(--bezel); padding: 6px 12px;
+  font: 700 14px/1 var(--font-ui); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); transition: opacity .15s;
+}
+.host-panel {
+  display: none; position: absolute; right: 0; bottom: 100%; flex-direction: column; align-items: stretch; gap: 6px;
+  min-width: 240px; padding: 8px; margin-bottom: 6px; background: var(--podium); border: 2px solid #000; box-shadow: 0 10px 30px rgba(0, 0, 0, .6);
+}
+.host:hover .host-tab, .host:focus-within .host-tab { opacity: 1; }
+.host:hover .host-panel, .host:focus-within .host-panel, .host.open .host-panel { display: flex; }
+.host-panel .btn { text-align: left; white-space: nowrap; }
+/* Invisible bridge so the panel doesn't close while the mouse moves up from the tab. */
+.host-panel::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 8px; }
 .btn kbd { display: inline-block; min-width: 1.4em; margin-right: 6px; padding: 0 4px; border: 1px solid rgba(255, 255, 255, .5); font: inherit; font-size: .8em; }
 .btn.wrong { background: #8a1f2b; }
 .title { margin: 0; font: 400 clamp(36px, 6vw, 72px)/1 var(--font-board); text-transform: uppercase; letter-spacing: .03em; text-shadow: 4px 4px 0 #000; }
@@ -889,6 +903,10 @@ document.addEventListener("pointerdown", e => { if (!e.target.closest("#menu") &
 
 function finishClue(result, winner) { state.used[view.id] = result; nextTurn(winner); render(); }
 
+// Host-only buttons live in a small tab in the bottom-right corner and open on hover (or tap),
+// so the class sees just the clue.
+let hostOpen = false;   // stays open between clicks until the mouse leaves the tab
+const hostPanel = inner => `<div class="host${hostOpen ? " open" : ""}"><button class="host-tab" type="button" aria-label="Host controls">Host</button><div class="host-panel">${inner}</div></div>`;
 function drawOverlay() {
   Sound.stopMusic();
   const ov = $("#overlay");
@@ -920,17 +938,17 @@ function drawOverlay() {
       let who, buttons = "";
       if (view.team != null) {
         who = `<p class="who">${whoOf(view.team)}</p>`;
-        buttons = `<button class="btn right big" data-judge="right" type="button">Correct, +$${amount.toLocaleString()}</button>
-          <button class="btn wrong big" data-judge="wrong" type="button">Wrong${view.wager != null ? ", -$" + amount.toLocaleString() : ""}</button>`;
+        buttons = `<button class="btn right" data-judge="right" type="button">Correct, +$${amount.toLocaleString()}</button>
+          <button class="btn wrong" data-judge="wrong" type="button">Wrong${view.wager != null ? ", -$" + amount.toLocaleString() : ""}</button>`;
       } else {
         who = "";
-        buttons = remaining().map(i => `<button class="btn big" data-pick="${i}" type="button"><kbd>${i + 1}</kbd> ${esc(playerUp(i))} (${nameOf(i)})</button>`).join("");
+        buttons = remaining().map(i => `<button class="btn" data-pick="${i}" type="button"><kbd>${i + 1}</kbd> ${esc(playerUp(i))} (${nameOf(i)})</button>`).join("");
       }
       body = `${who}
         <p class="clue">${esc(clue.clue)}</p>
         ${missed}
         ${view.out.length ? "" : timerHtml}
-        <div class="actions">${buttons}<button class="btn big" id="reveal" type="button">Show answer</button></div>`;
+        ${hostPanel(`${buttons}<button class="btn" id="reveal" type="button">Show answer</button>`)}`;
       break;
     }
     case "answer": {
@@ -938,11 +956,8 @@ function drawOverlay() {
       body = `<p class="clue small">${esc(clue.clue)}</p>
         <p class="answer">${esc(clue.answer)}</p>
         ${missed}
-        <p class="who">Who got it?</p>
-        <div class="actions">
-          ${can.map(i => `<button class="btn right big" data-award="${i}" type="button">${esc(playerUp(i))} (${nameOf(i)})</button>`).join("")}
-          <button class="btn wrong big" id="nobody" type="button">Nobody got it</button>
-        </div>`;
+        ${hostPanel(`${can.map(i => `<button class="btn right" data-award="${i}" type="button"><kbd>${i + 1}</kbd> ${esc(playerUp(i))} (${nameOf(i)}) got it</button>`).join("")}
+          <button class="btn wrong" id="nobody" type="button">Nobody got it</button>`)}`;
       break;
     }
     case "known":
@@ -964,7 +979,7 @@ function drawOverlay() {
     <div class="ov-body">${body}</div>`;
   ov.hidden = false;
   zoomIn(ov);
-  (ov.querySelector(".ov-body input, .ov-body .btn.primary, .ov-body .btn") || ov).focus({ preventScroll: true });
+  (ov.querySelector(".ov-body input, .ov-body .btn.primary, .ov-body > .actions .btn") || ov).focus({ preventScroll: true });
 }
 
 /* ---------- Scores ---------- */
@@ -1132,9 +1147,15 @@ $("#setupForm").addEventListener("submit", e => {
   openDeck("rules", { start: true });
 });
 
+// Close the host tab once the mouse is anywhere outside it. (A mouseout isn't reliable here:
+// the tab is redrawn under the mouse after every click.)
+document.addEventListener("mousemove", e => {
+  if (hostOpen && !e.target.closest(".host")) { hostOpen = false; document.querySelectorAll(".host.open").forEach(x => x.classList.remove("open")); }
+});
 document.addEventListener("click", e => {
   const t = e.target.closest("button");
   if (!t) return;
+  hostOpen = !!t.closest(".host-panel");
   if (t.id === "resume") { state = loadSaved(); return showGame(); }
   if (t.id === "menuBtn") return toggleMenu();
   if (t.closest("#menuList") && t.id !== "btnReset" && t.id !== "btnSound") toggleMenu(false);
@@ -1235,9 +1256,11 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && !$("#menuList").hidden) return toggleMenu(false);
   if (e.key === "Escape" && view) return document.querySelector("#overlay [data-close]")?.click();
   if (e.target.closest("input")) return;
-  // Buzzers: press 1, 2 or 3 for the team whose player buzzed in.
-  if (view && !view.kind && view.step === "clue" && view.team == null && /^[1-9]$/.test(e.key)) {
-    return document.querySelector(`#overlay [data-pick="${Number(e.key) - 1}"]`)?.click();
+  // Buzzers: press 1, 2 or 3 for the team whose player buzzed in (or, after the answer, who got it).
+  if (view && !view.kind && /^[1-9]$/.test(e.key)) {
+    const i = Number(e.key) - 1;
+    if (view.step === "clue" && view.team == null) return document.querySelector(`#overlay [data-pick="${i}"]`)?.click();
+    if (view.step === "answer") return document.querySelector(`#overlay [data-award="${i}"]`)?.click();
   }
   // Slide clickers send PageDown / PageUp; arrow keys work too.
   if (view && view.kind === "deck") {
