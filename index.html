@@ -160,7 +160,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .tile.used { color: transparent; text-shadow: none; }
 .tile.used:hover { filter: brightness(1.08); }
 .tile.selected {
-  position: relative; z-index: 1; color: #fff; text-shadow: 2px 2px 0 #000;
+  position: relative; z-index: 1; color: #fff; text-shadow: 1px 1px 0 #000; overflow: hidden;
   font: 400 clamp(11px, 1.15vw, 17px)/1.25 var(--font-board); letter-spacing: .02em; text-transform: uppercase; filter: none;
   box-shadow: 0 0 0 2px #e6eeff, 0 0 26px 6px rgba(140, 180, 255, .85);
 }
@@ -813,9 +813,21 @@ function selectTile(el) {
   selecting = true;
   el.classList.add("selected");
   el.textContent = id === state.dd ? "Daily Double" : clueById(id).clue.clue;
+  fitText(el);
   const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   setTimeout(() => { selecting = false; openClue(id); }, reduce ? 150 : 900);
   Sound.prime();
+}
+// Shrink a tile's text until the whole clue fits inside the square.
+function fitText(el) {
+  let lo = 5, hi = parseFloat(getComputedStyle(el).fontSize);
+  el.style.lineHeight = "1.15";
+  while (hi - lo > .5) {
+    const mid = (lo + hi) / 2;
+    el.style.fontSize = mid + "px";
+    if (el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth) lo = mid; else hi = mid;
+  }
+  el.style.fontSize = lo + "px";
 }
 function toggleMenu(force) {
   const list = $("#menuList"), open = force ?? list.hidden;
