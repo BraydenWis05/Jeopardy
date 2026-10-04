@@ -62,7 +62,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .btn.big { padding: 12px 22px; font-size: 20px; }
 .btn.right { background: #0d6b45; }
 /* Live screen (projector): everything the host clicks is hidden; it only mirrors the control board. */
-body.live .menu, body.live .host, body.live .btn, body.live input, body.live .wager label { display: none !important; }
+body.live .host-only, body.live .menu, body.live .host, body.live .btn, body.live input, body.live .wager label { display: none !important; }
 body.live { cursor: none; }
 body.live .ov-head { position: relative; min-height: 38px; }
 body.live .ov-head .val { position: absolute; left: 50%; transform: translateX(-50%); }
@@ -77,6 +77,121 @@ body.live .ov-head .val { position: absolute; left: 50%; transform: translateX(-
 }
 .host-answer { margin: 0 0 4px; padding: 6px 8px; background: rgba(0, 0, 0, .35); font: 600 16px/1.3 var(--font-clue); max-width: 320px; white-space: normal; }
 .host-answer b { display: block; font: 700 12px/1.2 var(--font-ui); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
+/* ---------- Control board console (laptop, while the live screen is open) ----------
+   A tool, not a show: dark panels, small labels, status lights, compact controls. */
+.console, .dash { --c-bg: #000; --c-panel: #0b0b10; --c-line: #2b2b38; --c-dim: #9a9ab0; --c-live: #3ddc6a; --c-amber: #f2c14e;
+  --c-green: #33b249; --c-purple: #6a2ee8; --c-purple-dim: #2a1659; --c-red: #e03b3b; }
+.console {
+  position: fixed; z-index: 30; inset: 0 var(--dash-w) 0 0; overflow-y: auto; background: var(--c-bg);
+  display: grid; align-content: start; gap: 10px; padding: 10px 12px; font: 600 15px/1.35 var(--font-ui); color: #e6e9f2;
+}
+.cb-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 10px; background: var(--c-panel); border: 1px solid var(--c-line); }
+.cb-bar .cb-title { color: #c9b8ff; }
+.cb-title { font: 700 14px/1 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--c-dim); }
+.cb-live { display: inline-flex; align-items: center; gap: 6px; font: 700 13px/1 var(--font-ui); letter-spacing: .1em; color: var(--c-live); }
+.cb-live::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--c-live); box-shadow: 0 0 8px var(--c-live); }
+.cb-status { font: 700 17px/1.2 var(--font-ui); }
+.cb-tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px; }
+.cb-btn {
+  border: 0; background: #2c2c3a; color: #fff; border-radius: 2px; padding: 7px 10px;
+  font: 700 14px/1.1 var(--font-ui); text-transform: uppercase; letter-spacing: .04em;
+}
+.cb-btn:hover:not(:disabled) { filter: brightness(1.2); }
+.cb-btn:active:not(:disabled) { filter: brightness(.85); }
+.cb-btn.big { padding: 12px 16px; font-size: 18px; }
+.cb-btn.go { background: var(--c-green); color: #000; }
+.cb-btn.stop { background: var(--c-red); }
+.cb-btn.main { background: var(--c-purple); }
+.cb-btn.fx { background: var(--c-green); color: #000; }
+.cb-btn kbd { display: inline-block; min-width: 1.4em; margin-right: 6px; padding: 0 4px; border: 1px solid rgba(255,255,255,.4); font: inherit; font-size: .8em; }
+.cb-panel { background: var(--c-panel); border: 1px solid var(--c-line); padding: 10px; display: grid; gap: 8px; }
+.cb-panel > h3 { color: var(--c-green); margin: 0; font: 700 12px/1.2 var(--font-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--c-dim); }
+.cb-boardwrap { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 10px; }
+.cb-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; background: #000; }
+.cb-grid .cb-cat {
+  display: grid; place-items: center; min-height: 38px; padding: 2px 4px; background: var(--c-green); color: #000; text-align: center;
+  font: 700 12px/1.1 var(--font-ui); text-transform: uppercase; letter-spacing: .02em;
+}
+.cb-cell {
+  position: relative; height: 44px; border: 0; background: var(--c-purple); color: #fff; border-radius: 0;
+  font: 700 19px/1 var(--font-ui); font-variant-numeric: tabular-nums;
+}
+.cb-cell:hover:not(:disabled) { filter: brightness(1.2); }
+.cb-cell.known { color: #9fe7b0; background: var(--c-purple-dim); }
+.cb-cell.taught { color: #ff9b9b; background: var(--c-purple-dim); }
+.cb-side { display: grid; align-content: start; gap: 5px; }
+.cb-side .logo { font: 400 26px/1 var(--font-board); color: #c9b8ff; text-shadow: 2px 2px 0 #000; }
+.cb-side .meta { font: 600 13px/1.35 var(--font-ui); color: var(--c-dim); margin-bottom: 4px; }
+.cb-side .cb-btn { width: 100%; text-align: left; background: var(--c-purple); }
+.cb-side .cb-btn.stop { background: var(--c-red); }
+.cb-lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 10px; }
+.cb-fx { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.cb-cell.known, .cb-cell.taught { font-size: 13px; }
+.cb-cell .dd { position: absolute; top: 2px; right: 3px; font-size: 10px; letter-spacing: .05em; color: #fff; background: #7a2530; padding: 0 3px; }
+.cb-cell:disabled { opacity: .45; }
+.cb-scores { width: 100%; border-collapse: collapse; }
+.cb-scores td { padding: 5px 6px; border-top: 1px solid var(--c-line); }
+.cb-scores .sc { font: 700 20px/1 var(--font-ui); font-variant-numeric: tabular-nums; text-align: right; }
+.cb-scores .sc.neg { color: #ff8a8a; }
+.cb-scores .pl { color: var(--c-dim); }
+.cb-scores .pl b { color: #e6e9f2; }
+.cb-scores .tag { font: 700 11px/1 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: #fff; background: var(--c-purple); padding: 2px 5px; margin-left: 6px; }
+.cb-scores .adj { text-align: right; white-space: nowrap; }
+.cb-cur-head { display: flex; justify-content: space-between; gap: 10px; font: 700 15px/1.2 var(--font-ui); text-transform: uppercase; letter-spacing: .05em; }
+.cb-cur-head .v { color: #c9b8ff; }
+.cb-clue { font: 600 18px/1.4 var(--font-clue); }
+.cb-ans { padding: 6px 8px; background: #1a1430; border-left: 3px solid var(--c-purple); font: 700 17px/1.35 var(--font-clue); }
+.cb-ans small { display: block; font: 700 11px/1.2 var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: #c9b8ff; }
+.cb-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.cb-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--c-line); }
+.cb-row .n { flex: 1 1 140px; font-weight: 700; }
+.cb-input { width: 7ch; padding: 8px; background: #0b0e14; border: 1px solid var(--c-line); color: var(--c-amber); font: 700 18px/1 var(--font-ui); text-align: right; }
+.cb-note { color: var(--c-dim); font-weight: 600; }
+.cb-res-ok { color: var(--c-live); font-weight: 700; } .cb-res-no { color: #ff8a8a; font-weight: 700; }
+body.has-dash #game, body.has-dash #overlay, body.has-dash .menu { display: none !important; }
+
+/* Control board: when the live screen is open, this window becomes a tool, not a show.
+   Left: plain board and big host buttons. Right: projector preview, what to say, what's next, music, sounds. */
+:root { --dash-w: min(40vw, 560px); }
+.dash {
+  position: fixed; z-index: 30; top: 0; right: 0; bottom: 0; width: var(--dash-w); overflow-y: auto;
+  display: grid; align-content: start; gap: 10px; padding: 10px 12px 10px 0; background: var(--c-bg);
+}
+.dash-sec { display: grid; gap: 6px; padding: 10px; background: var(--c-panel); border: 1px solid var(--c-line); }
+.dash-sec h3 { margin: 0; font: 700 12px/1.2 var(--font-ui); text-transform: uppercase; letter-spacing: .12em; color: var(--c-dim); }
+.dash-sec h3 { color: var(--c-green); }
+.dash-sec.say div { font: 500 19px/1.45 var(--font-clue); }
+.dash-sec.say q { font-weight: 700; quotes: "\201C" "\201D"; }
+.dash-sec.ans { background: #1a1430; border-left: 3px solid var(--c-purple); }
+.dash-sec.ans div { font: 700 20px/1.35 var(--font-clue); }
+.dash-sec.next div { font: 600 17px/1.4 var(--font-ui); color: #d8defc; }
+.dash-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.dash-row .btn { font-size: 14px; padding: 7px 10px; }
+.preview { position: relative; overflow: hidden; border: 2px solid #000; background: #000; aspect-ratio: 16 / 9; }
+.preview iframe { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; border: 0; transform-origin: 0 0; pointer-events: none; }
+body.has-dash .app, body.has-dash .setup { margin-right: var(--dash-w); }
+body.has-dash .overlay { right: var(--dash-w); background: #0b1033; animation: none; }
+body.has-dash .overlay::before, body.has-dash .live-badge, body.has-dash .host-tab, body.has-dash .host-answer { display: none; }
+body.has-dash .lamps, body.has-dash .pillar, body.has-dash .floor { display: none; }
+body.has-dash .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+body.has-dash .bezel { grid-column: 1; grid-row: 1; }
+body.has-dash .board { min-width: 0; }
+body.has-dash .podium .p-score { min-width: 3.2em; font-size: clamp(18px, 1.8vw, 28px); }
+body.has-dash .podium .p-team { overflow-wrap: normal; font-size: clamp(14px, 1.3vw, 18px); }
+body.has-dash .tile { font-size: clamp(20px, 2.4vw, 40px); }
+body.has-dash .cat { font-size: clamp(13px, 1.3vw, 20px); }
+body.has-dash .menu { right: calc(var(--dash-w) + 8px); }
+body.has-dash .clue { font-size: clamp(18px, 1.8vw, 26px); text-shadow: none; }
+body.has-dash .big-word { font-size: clamp(36px, 5vw, 64px); }
+body.has-dash .slide h2 { font-size: clamp(26px, 3vw, 44px); }
+body.has-dash .slide .body, body.has-dash .slide .ask, body.has-dash .slide ol { font-size: clamp(16px, 1.5vw, 20px); }
+body.has-dash .host { position: static; width: 100%; max-width: 760px; }
+body.has-dash .host-panel {
+  display: flex !important; position: static; flex-direction: row; flex-wrap: wrap; justify-content: center;
+  min-width: 0; padding: 0; margin: 0; background: none; border: 0; box-shadow: none;
+}
+body.has-dash .host-panel::after { display: none; }
+body.has-dash .host-panel .btn { font-size: 20px; padding: 12px 18px; }
 .host { position: fixed; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); z-index: 2; }
 .host-tab {
   opacity: .5; border: 1px solid var(--rim); background: var(--bezel); padding: 6px 12px;
@@ -401,6 +516,15 @@ body.live .ov-head .val { position: absolute; left: 50%; transform: translateX(-
 </main>
 <button class="live-full" id="liveFull" type="button" hidden>Full screen</button>
 <div class="live-badge" id="liveBadge" hidden>Live screen on</div>
+<aside class="dash" id="dash" hidden aria-label="Control board">
+  <section class="dash-sec">
+    <h3>On the projector</h3>
+    <div class="preview" id="previewBox"><iframe id="preview" title="What the projector is showing" tabindex="-1"></iframe></div>
+  </section>
+  <section class="dash-sec say"><h3>Say</h3><div id="dashSay"></div></section>
+  <section class="dash-sec ans" id="dashAnsBox" hidden><h3>Answer (only you see this)</h3><div id="dashAns"></div></section>
+  <section class="dash-sec next"><h3>Next</h3><div id="dashNext"></div></section>
+</aside>
 
 <div class="app" id="game" hidden>
   <div class="menu" id="menu">
@@ -434,6 +558,7 @@ body.live .ov-head .val { position: absolute; left: 50%; transform: translateX(-
   <p class="turn-line" id="turnLine" aria-live="polite"></p>
   <div class="podiums" id="podiums" aria-label="Players at the podium"></div>
 </div>
+<main class="console" id="console" hidden aria-label="Control board"></main>
 <div class="overlay" id="overlay" hidden></div>
 
 
@@ -637,12 +762,12 @@ const GAME = {
     ]}
   ],
   final: {
-    category: "Usability",
-    clue: "Usability is often measured with these three qualities, abbreviated EES: can people finish the task, how much effort does it take, and how do they feel about it?",
-    answer: "What are effectiveness, efficiency and satisfaction?",
-    note: "It's how usability gets measured. Can people finish the task? How much time and effort does it take? Do they feel good about it? The paper calls this \"usability over UI\": a pretty app that fails any of these isn't good UX.",
-    ask: "Pick an app you use every day. Score it 1 to 5 on all three.",
-    source: "ISO 9241-11:2018, Ergonomics of human-system interaction, Part 11: Usability; " + READING + "."
+    category: "Required Reading",
+    clue: "First published in 1988, this book with a famous yellow cover is often called the starting point of modern user-centered design.",
+    answer: "What is The Design of Everyday Things?",
+    note: "Don Norman's book about why so many everyday things are hard to use, like doors you push when you should pull. It gave designers words like affordances, signifiers and feedback, and the big idea that when people struggle, it's the design's fault, not theirs.",
+    ask: "What's something you use every day that this book would call bad design?",
+    source: "Don Norman, The Design of Everyday Things, revised and expanded edition, Basic Books, 2013 (first published 1988)."
   }
 };
 
@@ -652,6 +777,7 @@ const GAME = {
    drag that window onto the projector. The control board sends the whole game to it after every
    change (BroadcastChannel, same computer and browser only). Sounds play from the control board. */
 const LIVE = new URLSearchParams(location.search).get("screen") === "live";
+const PREVIEW = LIVE && new URLSearchParams(location.search).has("preview");   // the mini copy inside the control board
 const chan = "BroadcastChannel" in window ? new BroadcastChannel("ux-jeopardy-live") : null;
 let liveOn = false, lastPing = 0, syncQueued = false, syncZoom = null, syncTimer = null, liveTick = null, lastViewJSON = null;
 
@@ -662,6 +788,7 @@ function scheduleSync() {
     syncQueued = false;
     chan.postMessage({ type: "state", phase: $("#game").hidden ? "setup" : "game", state, view, zoom: syncZoom, timer: syncTimer });
     syncZoom = syncTimer = null;
+    if (liveOn) updateDash();
   });
 }
 function openLive() {
@@ -673,6 +800,12 @@ function setLiveOn(on) {
   if (on === liveOn) return;
   liveOn = on;
   $("#liveBadge").hidden = !on;
+  document.body.classList.toggle("has-dash", on);
+  $("#dash").hidden = !on;
+  const f = $("#preview");
+  if (on) { f.src = location.pathname + "?screen=live&preview=1"; fitPreview(); updateDash(); }
+  else { f.removeAttribute("src"); $("#console").hidden = true; }
+  if (view) drawOverlay();
   document.querySelectorAll("button[data-open-live]").forEach(b => { (b.querySelector(".lbl") || b).textContent = on ? "Live screen is open" : "Open live screen"; });
 }
 if (!LIVE && chan) {
@@ -682,9 +815,195 @@ if (!LIVE && chan) {
       if (data.type === "hello") { lastViewJSON = null; scheduleSync(); }
     }
     if (data.type === "bye") setLiveOn(false);
+    if (data.type === "preview-hello") scheduleSync();
   };
   setInterval(() => { if (liveOn && Date.now() - lastPing > 5000) setLiveOn(false); }, 2000);
+  setInterval(() => { const m = liveOn && $("#dashMusic"); if (m) m.textContent = Sound.playing ? "Stop music" : "Thinking music"; }, 1000);
 }
+
+/* What the host should say right now, the answer (if any), and what happens next. */
+function hostCue() {
+  const q = t => `<q>${esc(t)}</q>`;
+  if ($("#game").hidden || !state) return { say: "Type the team names and players, then press Start game.", next: "The rules slides come up first." };
+  const nameOf = i => state.teams[i].name, up = i => state.teams[i].players[state.rot % TEAM_SIZE];
+  if (!view) {
+    const left = GAME.categories.length * 5 - Object.keys(state.used).length;
+    if (!left) return state.finalDone
+      ? { say: "That's the game! Thanks for playing.", next: "Open Presentation mode or Topics to teach from the menu." }
+      : { say: `That's the end of the board. ${q("It's time for Final Jeopardy!")}`, next: "Click Play Final Jeopardy under the board." };
+    return { say: q(`${nameOf(state.turn)}, pick a category and an amount.`) + ` At the podium: ${state.teams.map((_, i) => up(i)).join(", ")}.`,
+             next: "Click the square they pick." };
+  }
+  if (view.kind === "deck") {
+    const sl = deckSlides(), cur = sl[Math.min(view.i, sl.length - 1)], last = view.i >= sl.length - 1;
+    return { say: esc(cur.say || ""), next: last ? (view.start ? "Click Start the game (or press →)." : "Click Done to go back to the board.") : "Click Next (or press →) for the next slide." };
+  }
+  if (view.kind === "scores") return { say: "", next: "Use −100 and +100 to fix a score, then Close." };
+  if (view.kind === "list") return { say: "These are the topics nobody got. Go over them now, or later in Presentation mode.", next: "Close when you're done." };
+  if (view.kind === "final") {
+    const F = GAME.final;
+    if (view.step === "wager") return { say: q(`The Final Jeopardy category is ${F.category}. Write your bet on paper, from zero up to your score. Don't show anyone.`), next: "When every team has a bet written down, click Show the clue." };
+    if (view.step === "clue") return { say: `Read it out: ${q(F.clue)} Teams, you have 30 seconds.`, answer: F.answer, next: "When time's up, click Reveal answer." };
+    if (view.step === "answer") return { say: `${q(`The answer is: ${F.answer}`)} ${q("Show me your bets!")}`, answer: F.answer, next: "Type each team's bet, then mark it Correct or Wrong. Then See results." };
+    const ranked = [...state.teams].sort((a, b) => b.score - a.score);
+    return { say: q(`Congratulations, ${ranked[0].name}! You win with ${money(ranked[0].score)}.`), next: "Open Presentation mode to go over what you learned." };
+  }
+  const { clue } = clueById(view.id), amount = view.wager ?? clue.value;
+  switch (view.step) {
+    case "dd": return { say: q(`It's a Daily Double! ${up(view.team)}, this one is just for you. How much do you want to bet?`) + ` From $5 up to ${money(Math.max(state.teams[view.team].score, 500))}.`, next: "Type the bet, then click Show the clue." };
+    case "clue":
+      if (view.wager != null) return { say: `Read it out: ${q(clue.clue)}`, answer: clue.answer, next: `Only ${up(view.team)} answers. Click Correct or Wrong.` };
+      if (view.team != null) return { say: q(`${up(view.team)}?`), answer: clue.answer, next: "Click Correct or Wrong." };
+      if (view.out.length) return { say: q("Anyone else? Buzz in!"), answer: clue.answer, next: "Click who buzzed next (or press 1, 2, 3), or Show answer if nobody does." };
+      return { say: `Read it out: ${q(clue.clue)}`, answer: clue.answer, next: "Players buzz in. Click who buzzed first (or press 1, 2, 3)." };
+    case "answer": return { say: q(`The answer is: ${clue.answer}`), answer: clue.answer, next: "Click who got it, or Nobody got it." };
+    case "known": return { say: q(`That's right! ${money(amount)} to ${nameOf(view.winner)}. ${nameOf(view.winner)}, you pick next.`), next: "Click Back to board." };
+    case "teach": case "review": return { say: `${esc(clue.note)} Then ask: ${q(clue.ask)}`, next: "Click Back to board when you're done." };
+  }
+  return { say: "", next: "" };
+}
+/* ---------- Console (left side of the control board) ---------- */
+function renderConsole() {
+  const el = $("#console");
+  const inGame = !$("#game").hidden && state;
+  el.hidden = !inGame;
+  if (!inGame) return;
+  const total = GAME.categories.length * 5, played = Object.keys(state.used).length, left = total - played;
+  const nameOf = i => esc(state.teams[i].name), up = i => esc(state.teams[i].players[state.rot % TEAM_SIZE]);
+  const B = (attrs, label, cls = "") => `<button type="button" class="cb-btn ${cls}" ${attrs}>${label}</button>`;
+
+  // Status line
+  let status;
+  if (!view) status = left ? `${nameOf(state.turn)} picking` : (state.finalDone ? "Game over" : "Board cleared");
+  else if (view.kind === "deck") status = view.deck === "rules" ? "Rules slides" : "Presentation mode";
+  else if (view.kind === "final") status = "Final Jeopardy";
+  else if (view.kind === "scores") status = "Fixing scores";
+  else if (view.kind === "list") status = "Topics to teach";
+  else status = { dd: "Daily Double: wager", clue: view.team != null ? `${up(view.team)} answering` : (view.out.length ? "Waiting for another buzz" : "Clue up, waiting for buzz"),
+                  answer: "Answer revealed", known: "Got it", teach: "Nobody got it: teach", review: "Reviewing a played clue" }[view.step] || "";
+
+  // Board grid
+  const busy = !!view;
+  let grid = GAME.categories.map(c => `<div class="cb-cat">${esc(c.name)}</div>`).join("");
+  for (let r = 0; r < 5; r++) GAME.categories.forEach((c, ci) => {
+    const id = ci + "-" + r, u = state.used[id], v = c.clues[r].value;
+    const label = u === "known" ? "Got it" : u === "taught" ? "Missed" : "$" + v;
+    grid += `<button type="button" class="cb-cell ${u || ""}" data-cell="${id}" ${busy ? "disabled" : ""} title="${esc(c.name)}, $${v}">${label}${!u && id === state.dd ? '<span class="dd">DD</span>' : ""}</button>`;
+  });
+
+  // Scores
+  const scores = state.teams.map((t, i) => `<tr>
+    <td><b>${esc(t.name)}</b>${left && i === state.turn ? '<span class="tag">Picks</span>' : ""}</td>
+    <td class="pl">${t.players.map((p, j) => j === state.rot % TEAM_SIZE ? `<b>${esc(p)}</b>` : esc(p)).join(", ")}</td>
+    <td class="sc${t.score < 0 ? " neg" : ""}">${money(t.score)}</td>
+    <td class="adj">${B(`data-adj="-100" data-i="${i}" aria-label="Take 100 from ${esc(t.name)}"`, "−100")} ${B(`data-adj="100" data-i="${i}" aria-label="Give 100 to ${esc(t.name)}"`, "+100")}</td></tr>`).join("");
+
+  el.innerHTML = `
+    <div class="cb-bar">
+      <span class="cb-title">Control board</span><span class="cb-live">Live</span>
+      <span class="cb-status">${status}</span>
+    </div>
+    <section class="cb-panel"><h3>Current</h3>${consoleCurrent(B, nameOf, up, left)}</section>
+    <section class="cb-panel"><h3>Board${busy ? " (finish the current clue first)" : ": tap the square they pick"}</h3>
+      <div class="cb-boardwrap">
+        <div class="cb-grid">${grid}</div>
+        <div class="cb-side">
+          <div class="logo">Jeopardy!</div>
+          <div class="meta">${played} of ${total} played<br>${left ? `${nameOf(state.turn)} picks` : "Board cleared"}</div>
+          ${B('data-go="btnRules"', "Rules")}${B('data-go="btnPresent"', "Presentation")}${B('data-go="btnList"', "Topics to teach")}
+          ${B('data-go="btnFinal"', "Final Jeopardy")}${B('data-go="btnFull"', "Full screen")}${B("data-newgame", "New game", "stop")}
+        </div>
+      </div>
+    </section>
+    <div class="cb-lower">
+      <section class="cb-panel"><h3>Sound FX</h3>
+        <div class="cb-fx">
+          ${B('data-sfx="right"', "Correct", "fx")}${B('data-sfx="wrong"', "Wrong", "stop")}
+          ${B('data-sfx="timesUp"', "Time's up", "fx")}${B('data-sfx="dailyDouble"', "Daily Double", "fx")}
+          ${B('data-sfx="win"', "Winner", "fx")}${B('id="dashMusic"', Sound.playing ? "Stop music" : "Thinking music", "main")}
+          ${B('id="dashSound"', Sound.on ? "Sound on" : "Sound off")}${B('id="dashPickMusic"', Sound.custom ? "Change music file" : "Music file")}
+        </div>
+      </section>
+      <section class="cb-panel"><h3>Scores and who's up</h3><table class="cb-scores">${scores}</table></section>
+    </div>`;
+}
+function consoleCurrent(B, nameOf, up, left) {
+  const close = B("data-close", "Back to board");
+  if (!view) return left
+    ? `<div class="cb-note">No clue open. ${nameOf(state.turn)} picks next.</div>`
+    : `<div class="cb-actions">${B("data-final", state.finalDone ? "See final results" : "Play Final Jeopardy", "big main")}</div>`;
+  if (view.kind === "deck") {
+    const n = deckSlides().length, last = view.i >= n - 1;
+    return `<div class="cb-cur-head"><span>${view.deck === "rules" ? "Rules" : "Presentation"}</span><span class="v">Slide ${view.i + 1} of ${n}</span></div>
+      <div class="cb-actions">${B(`id="deckPrev" ${view.i ? "" : "disabled"}`, "← Back", "big")}${B('id="deckNext"', last ? (view.start ? "Start the game" : "Done") : "Next →", "big main")}
+      ${view.deck === "present" ? B('id="deckOnly"', view.only ? "Show all topics" : "Only missed topics") : ""}${B("data-close", "Close")}</div>`;
+  }
+  if (view.kind === "scores" || view.kind === "list") return `<div class="cb-actions">${close}</div>`;
+  if (view.kind === "final") {
+    const F = GAME.final;
+    const head = `<div class="cb-cur-head"><span>Final Jeopardy</span><span class="v">${esc(F.category)}</span></div>`;
+    if (view.step === "wager") return `${head}<div class="cb-note">Teams write their bets on paper.${state.teams.some((_, i) => !view.playing[i]) ? " Teams at $0 or less sit out." : ""}</div>
+      <div class="cb-actions">${B('id="finalClue"', "Show the clue", "big main")}</div>`;
+    if (view.step === "clue") return `${head}<div class="cb-clue">${esc(F.clue)}</div><div class="cb-ans"><small>Answer</small>${esc(F.answer)}</div>
+      <div class="cb-actions">${B('id="finalReveal"', "Reveal answer", "big main")}</div>`;
+    if (view.step === "answer") {
+      const done = state.teams.every((_, i) => !view.playing[i] || view.judged[i]);
+      const rows = state.teams.map((t, i) => {
+        const j = view.judged[i];
+        let right;
+        if (!view.playing[i]) right = `<span class="cb-note">Sitting out</span>`;
+        else if (j) right = `<span>Bet ${money(view.wagers[i])}</span><span class="${j === "ok" ? "cb-res-ok" : "cb-res-no"}">${j === "ok" ? "Correct" : "Wrong"}</span>`;
+        else right = `<input class="cb-input" id="fw-${i}" type="number" inputmode="numeric" min="0" max="${Math.max(t.score, 0)}" step="100" placeholder="0" aria-label="${esc(t.name)} bet">
+          ${B(`data-fjudge="ok" data-i="${i}"`, "Correct", "go")}${B(`data-fjudge="no" data-i="${i}"`, "Wrong", "stop")}`;
+        return `<div class="cb-row"><span class="n">${esc(t.name)} <span class="cb-note">(max ${money(Math.max(t.score, 0))})</span></span>${right}</div>`;
+      }).join("");
+      return `${head}<div class="cb-ans"><small>Answer</small>${esc(F.answer)}</div>${rows}
+        <div class="cb-actions">${B(`id="finalDone" ${done ? "" : "disabled"}`, "See results", "big main")}</div>`;
+    }
+    return `${head}<div class="cb-actions">${B('id="openList"', "Topics to teach")}${B('id="openPresent"', "Presentation mode")}${B("data-close", "Back to board")}</div>`;
+  }
+  const { cat, clue } = clueById(view.id), amount = view.wager ?? clue.value;
+  const head = `<div class="cb-cur-head"><span>${esc(cat.name)}</span><span class="v">${view.wager != null ? "Daily Double, " + money(amount) : money(clue.value)}</span></div>`;
+  const text = `<div class="cb-clue">${esc(clue.clue)}</div><div class="cb-ans"><small>Answer</small>${esc(clue.answer)}</div>`;
+  const missed = view.out && view.out.length ? `<div class="cb-note">Missed: ${view.out.map(up).join(", ")}</div>` : "";
+  switch (view.step) {
+    case "dd": {
+      const max = Math.max(state.teams[view.team].score, 500);
+      return `${head}<div class="cb-note">${up(view.team)} (${nameOf(view.team)}) plays alone. Bet $5 to ${money(max)}.</div>
+        <div class="cb-actions"><input class="cb-input" id="ddWager" type="number" inputmode="numeric" min="5" max="${max}" step="100" placeholder="${clue.value}" aria-label="Daily Double bet">
+        ${B('id="ddGo"', "Show the clue", "big main")}</div>`;
+    }
+    case "clue":
+      if (view.team != null) return `${head}${text}${missed}<div class="cb-note">${up(view.team)} (${nameOf(view.team)}) is answering.</div>
+        <div class="cb-actions">${B('data-judge="right"', `Correct, +${money(amount)}`, "big go")}${B('data-judge="wrong"', `Wrong${view.wager != null ? ", −" + money(amount) : ""}`, "big stop")}</div>`;
+      return `${head}${text}${missed}<div class="cb-note">Who buzzed ${view.out.length ? "next" : "first"}?</div>
+        <div class="cb-actions">${remaining().map(i => B(`data-pick="${i}"`, `<kbd>${i + 1}</kbd>${up(i)} (${nameOf(i)})`, "big")).join("")}${B('id="reveal"', "Show answer", "big")}</div>`;
+    case "answer": {
+      const can = view.wager != null ? [view.team] : remaining();
+      return `${head}${text}${missed}<div class="cb-actions">${can.map(i => B(`data-award="${i}"`, `<kbd>${i + 1}</kbd>${up(i)} (${nameOf(i)}) got it`, "big go")).join("")}${B('id="nobody"', "Nobody got it", "big stop")}</div>`;
+    }
+    case "known": return `${head}<div class="cb-res-ok">${esc(view.winnerName)} got it for ${nameOf(view.winner)}.</div>
+      <div class="cb-actions">${B("data-close", "Back to board", "big main")}${B('id="teachAnyway"', "Show the lesson anyway")}</div>`;
+    default: return `${head}<div class="cb-clue">${esc(clue.note)}</div><div class="cb-note">Ask: ${esc(clue.ask)}</div>
+      <div class="cb-actions">${B("data-close", "Back to board", "big main")}</div>`;
+  }
+}
+
+function updateDash() {
+  if (LIVE || !liveOn) return;
+  renderConsole();
+  const c = hostCue();
+  $("#dashSay").innerHTML = c.say || "<span style='opacity:.6'>Nothing to say right now.</span>";
+  $("#dashNext").textContent = c.next || "";
+  $("#dashAnsBox").hidden = !c.answer; $("#dashAns").textContent = c.answer || "";
+
+}
+// Shrink the 1280×720 live screen to fit the preview box.
+function fitPreview() {
+  const box = $("#previewBox"); if (!box) return;
+  $("#preview").style.transform = `scale(${box.clientWidth / 1280})`;
+}
+addEventListener("resize", () => { if (liveOn) fitPreview(); });
 
 function startLive() {
   document.body.classList.add("live");
@@ -694,13 +1013,14 @@ function startLive() {
   document.addEventListener("fullscreenchange", () => { $("#liveFull").hidden = !!document.fullscreenElement; });
   // The Full screen button shows when the mouse moves and tucks itself away after a few seconds.
   let idle;
-  const wake = () => { $("#liveFull").classList.remove("idle"); clearTimeout(idle); idle = setTimeout(() => $("#liveFull").classList.add("idle"), 4000); };
+  const wake = () => { $("#liveFull")?.classList.remove("idle"); clearTimeout(idle); idle = setTimeout(() => $("#liveFull")?.classList.add("idle"), 4000); };
   document.addEventListener("mousemove", wake); wake();
   if (!chan) { $("#waiting p").textContent = "This browser can't run a live screen. Try Chrome, Edge or Firefox."; return; }
   chan.onmessage = ({ data }) => {
     if (data.type === "select") return document.querySelector(`.tile[data-id="${data.id}"]`)?.classList.add("selected");
     if (data.type === "state") applyFromControl(data);
   };
+  if (PREVIEW) { $("#liveFull").remove(); return chan.postMessage({ type: "preview-hello" }); }
   chan.postMessage({ type: "hello" });
   setInterval(() => chan.postMessage({ type: "ping" }), 2000);
   addEventListener("pagehide", () => chan.postMessage({ type: "bye" }));
@@ -858,7 +1178,7 @@ const Sound = (() => {
     if (!on) stopMusic();
     return on;
   }
-  return { startMusic, stopMusic, setMusic, get custom() { return custom; }, right, wrong, dailyDouble, win, toggle, prime, get on() { return on; }, get playing() { return !!timer; } };
+  return { startMusic, stopMusic, setMusic, get custom() { return custom; }, right, wrong, dailyDouble, win, timesUp, toggle, prime, get on() { return on; }, get playing() { return !!timer; } };
 })();
 
 function runTimer(seconds) {
@@ -986,7 +1306,7 @@ const allTeams = () => state.teams.map((_, i) => i);
 const remaining = () => allTeams().filter(i => !view.out.includes(i));
 let selecting = false;
 function selectTile(el) {
-  const id = el.dataset.id;
+  const id = el.dataset.id || el.dataset.cell;
   if (selecting) return;
   if (state.used[id]) return openClue(id);
   selecting = true;
@@ -1002,7 +1322,7 @@ let zoomFrom = null;
 // Only the clue text rides along; the buttons and top bar fade in once it lands.
 function zoomIn(ov) {
   const r = zoomFrom; zoomFrom = null;
-  if (!r || reduceMotion() || !ov.animate) return;
+  if (!r || reduceMotion() || !ov.animate || document.body.classList.contains("has-dash")) return;
   const sx = r.width / innerWidth, sy = r.height / innerHeight;
   // Turn off the normal fade-in for this opening; switching it back on mid-way would replay it and jump.
   ov.style.animation = "none";
@@ -1084,7 +1404,7 @@ function drawOverlay() {
       break;
     }
     case "known":
-      body = `<p class="status known">${esc(view.winnerName)} got it for ${nameOf(view.winner)}. No lesson needed.</p>
+      body = `<p class="status known">${esc(view.winnerName)} got it for ${nameOf(view.winner)}!</p>
         <p class="answer">${esc(clue.answer)}</p>
         <div class="actions"><button class="btn primary big" data-close type="button">Back to board</button>
           <button class="btn big" id="teachAnyway" type="button">Show the lesson anyway</button></div>`;
@@ -1149,14 +1469,14 @@ function drawList() {
    Each slide is { head, val, html }: head and val go in the top bar, so the slide itself has no small labels. */
 function rulesSlides() {
   const slides = [];
-  if (state) slides.push({ head: "Rules", html: `<div class="slide center"><h2>Tonight's teams</h2>
+  if (state) slides.push({ head: "Rules", say: `Welcome to UX Trends Jeopardy! Tonight's teams: ${state.teams.map(t => `${t.name}, with ${t.players.join(", ")}`).join(". ")}.`, html: `<div class="slide center"><h2>Tonight's teams</h2>
     <div class="roster">${state.teams.map(t => `<div><b>${esc(t.name)}</b>${t.players.map(p => `<span>${esc(p)}</span>`).join("")}</div>`).join("")}</div></div>` });
-  GAME.rules.forEach((r, i) => slides.push({ head: `Rules, ${i + 1} of ${GAME.rules.length}`, html: `<div class="slide">
+  GAME.rules.forEach((r, i) => slides.push({ head: `Rules, ${i + 1} of ${GAME.rules.length}`, say: r.points.join(" "), html: `<div class="slide">
     <h2>${esc(r.title)}</h2><ol>${r.points.map(p => `<li>${esc(p)}</li>`).join("")}</ol></div>` }));
   return slides;
 }
 function lessonSlide(item, head, val) {
-  return { head, val, html: `<div class="slide"><h2>${esc(topic(item))}</h2>
+  return { head, val, say: `${item.note} Then ask: ${item.ask}`, html: `<div class="slide"><h2>${esc(topic(item))}</h2>
     <p class="body">${esc(item.note)}</p>
     <p class="ask">${esc(item.ask)}</p>
     <p class="src">Source: ${esc(item.source)}</p></div>` };
@@ -1164,19 +1484,19 @@ function lessonSlide(item, head, val) {
 function presentSlides(onlyMissed) {
   const head = "Presentation mode";
   const pick = (ci, ri) => !onlyMissed || (state && state.used[ci + "-" + ri] === "taught");
-  const slides = [{ head, html: `<div class="slide center"><h2>UX Trends: What We Learned</h2>
+  const slides = [{ head, say: "Let's go over what we learned today.", html: `<div class="slide center"><h2>UX Trends: What We Learned</h2>
     <p class="body">${onlyMissed ? "Only the topics nobody got." : "Every topic from the board, one at a time."}</p></div>` }];
   GAME.categories.forEach((c, ci) => {
     const clues = c.clues.map((cl, ri) => [cl, ri]).filter(([, ri]) => pick(ci, ri));
     if (!clues.length) return;
-    slides.push({ head, html: `<div class="slide center"><h2>${esc(c.name)}</h2>
+    slides.push({ head, say: `Next category: ${c.name}.`, html: `<div class="slide center"><h2>${esc(c.name)}</h2>
       <p class="body">${clues.length} topic${clues.length > 1 ? "s" : ""}</p></div>` });
     clues.forEach(([cl]) => slides.push(lessonSlide(cl, c.name, money(cl.value))));
   });
   if (!onlyMissed || (state && state.finalDone === "taught")) slides.push(lessonSlide(GAME.final, "Final Jeopardy", GAME.final.category));
   if (onlyMissed && slides.length === 1) slides.push({ head, html: `<div class="slide center"><h2>Nothing to teach yet</h2>
     <p class="body">No clue has been missed so far. Switch to all topics to see every lesson.</p></div>` });
-  slides.push({ head: "Sources", html: `<div class="slide"><h2>Where this came from</h2><div class="sources">
+  slides.push({ head: "Sources", say: "Here's where all of this came from.", html: `<div class="slide"><h2>Where this came from</h2><div class="sources">
     ${GAME.categories.map(c => `<h3>${esc(c.name)}</h3><ul>${c.clues.map(cl => `<li>$${cl.value}: ${esc(cl.source)}</li>`).join("")}</ul>`).join("")}
     <h3>Final Jeopardy</h3><ul><li>${esc(GAME.final.source)}</li></ul></div></div>` });
   return slides;
@@ -1235,7 +1555,7 @@ function drawFinal() {
   } else if (view.step === "answer") {
     const done = state.teams.every((_, i) => !view.playing[i] || view.judged[i]);
     body = `<p class="answer">${esc(F.answer)}</p>
-      <p class="hint">Each team shows its paper. Type the bet, then mark it.</p>
+      <p class="hint host-only">Each team shows its paper. Type the bet, then mark it.</p>
       <div class="judge">${state.teams.map((t, i) => {
         const j = view.judged[i], max = Math.max(t.score, 0);
         let right;
@@ -1253,7 +1573,7 @@ function drawFinal() {
     const headline = winners.length === 1 ? `${winners[0]} wins!` : winners.length === 2 ? `${winners[0]} and ${winners[1]} tie!` : "Three-way tie!";
     body = `<div class="big-word">${esc(headline)}</div>
       <div class="ranking">${ranked.map(t => `<div><span>${esc(t.name)}</span><b>${money(t.score)}</b></div>`).join("")}</div>
-      ${state.finalDone === "known" ? `<p class="status known">Someone got Final Jeopardy, so no lesson is needed.</p>` : lessonCard(F)}
+      ${state.finalDone === "known" ? "" : lessonCard(F)}
       <div class="actions"><button class="btn primary big" id="openList" type="button">See all topics to teach</button>
         <button class="btn big" id="openPresent" type="button">Presentation mode</button></div>`;
   }
@@ -1285,6 +1605,13 @@ document.addEventListener("click", e => {
   if (!t) return;
   if (LIVE) { if (t.id === "liveFull") document.documentElement.requestFullscreen?.().catch(() => {}); return; }
   if (t.hasAttribute("data-open-live")) return openLive();
+  if (t.dataset.sfx) { Sound.prime(); return Sound[t.dataset.sfx](); }
+  if (t.dataset.cell) return selectTile(t);
+  if (t.dataset.go) return $("#" + t.dataset.go).click();
+  if (t.hasAttribute("data-newgame")) { if (confirm("End this game and start a new one?")) showSetup(); return; }
+  if (t.id === "dashMusic") { if (Sound.playing) Sound.stopMusic(); else { Sound.prime(); Sound.startMusic(30); } return updateDash(); }
+  if (t.id === "dashSound") { const on = Sound.toggle(); setLabel("#btnSound", on ? "Sound on" : "Sound off"); return updateDash(); }
+  if (t.id === "dashPickMusic") return $("#musicFile").click();
   hostOpen = !!t.closest(".host-panel");
   if (t.id === "resume") { state = loadSaved(); return showGame(); }
   if (t.id === "menuBtn") return toggleMenu();
