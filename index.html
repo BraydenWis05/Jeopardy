@@ -317,6 +317,10 @@ body.has-dash .host-panel .btn { font-size: 20px; padding: 12px 18px; }
   box-shadow: inset 0 0 18px rgba(0, 0, 50, .45);
   display: grid; place-items: center; text-align: center; padding: 4px 8px;
 }
+.tile.blank { color: transparent; text-shadow: none; }
+.cat.swipe { animation: swipe .55s cubic-bezier(.3, .8, .3, 1); }
+@keyframes swipe { from { clip-path: inset(0 0 0 100%); filter: brightness(1.8); } to { clip-path: inset(0); filter: none; } }
+@media (prefers-reduced-motion: reduce) { .cat.swipe { animation: none; } }
 .cat {
   color: #fff; font: 400 clamp(16px, 1.9vw, 28px)/1.05 var(--font-board); letter-spacing: .02em;
   text-transform: uppercase; text-wrap: balance; text-shadow: 2px 2px 0 #000;
@@ -858,6 +862,14 @@ function hostCue() {
   const q = t => `<q>${esc(t)}</q>`;
   if ($("#game").hidden || !state) return { say: "Type the team names and players, then press Start game.", next: "The rules slides come up first." };
   const nameOf = i => state.teams[i].name, up = i => state.teams[i].players[state.rot % TEAM_SIZE];
+  if (!view && state.intro) {
+    const it = state.intro, n = GAME.categories.length;
+    if (!it.filled) return { say: q("Let's take a look at today's board!"), next: "Click Fill the board (or press →). The amounts pop in." };
+    if (it.shown === 0) return { say: q("Here are today's categories."), next: "Click Reveal category 1 (or press →)." };
+    const c = GAME.categories[it.shown - 1];
+    return { say: q(`${it.shown === 1 ? "First up" : it.shown === n ? "And our last category" : "Next"}: ${c.name}.`) + ` ${esc(c.about)}`,
+             next: it.shown < n ? `Click Reveal category ${it.shown + 1} (or press →).` : `Click Start playing. ${nameOf(state.turn)} picks first.` };
+  }
   if (!view) {
     const left = GAME.categories.length * 5 - Object.keys(state.used).length;
     if (!left) return state.finalDone
@@ -868,7 +880,7 @@ function hostCue() {
   }
   if (view.kind === "deck") {
     const sl = deckSlides(), cur = sl[Math.min(view.i, sl.length - 1)], last = view.i >= sl.length - 1;
-    return { say: esc(cur.say || ""), next: last ? (view.start ? (view.deck === "rules" ? "Click Next (or press →) to reveal the categories." : "Click Start the game (or press →).") : "Click Done to go back to the board.") : "Click Next (or press →) for the next slide." };
+    return { say: esc(cur.say || ""), next: last ? (view.start ? "Click Show the board (or press →)." : "Click Done to go back to the board.") : "Click Next (or press →) for the next slide." };
   }
   if (view.kind === "scores") return { say: "", next: "Use −100 and +100 to fix a score, then Close." };
   if (view.kind === "list") return { say: "These are the topics nobody got. Go over them now, or later in Presentation mode.", next: "Close when you're done." };
@@ -906,7 +918,8 @@ function renderConsole() {
 
   // Status line
   let status;
-  if (!view) status = left ? `${nameOf(state.turn)} picking` : (state.finalDone ? "Game over" : "Board cleared");
+  if (!view && state.intro) status = "Board intro";
+  else if (!view) status = left ? `${nameOf(state.turn)} picking` : (state.finalDone ? "Game over" : "Board cleared");
   else if (view.kind === "deck") status = { rules: "Rules slides", cats: "Category reveal", present: "Presentation mode" }[view.deck];
   else if (view.kind === "final") status = "Final Jeopardy";
   else if (view.kind === "scores") status = "Fixing scores";
@@ -915,8 +928,9 @@ function renderConsole() {
                   answer: "Answer revealed", known: "Got it", teach: "Nobody got it: teach", review: "Reviewing a played clue" }[view.step] || "";
 
   // Board grid
-  const busy = !!view;
-  let grid = GAME.categories.map(c => `<div class="cb-cat">${esc(c.name)}</div>`).join("");
+  const busy = !!view || !!state.intro;
+  const shown = state.intro ? state.intro.shown : GAME.categories.length;
+  let grid = GAME.categories.map((c, i) => `<div class="cb-cat"${i < shown ? "" : ' style="opacity:.35"'}>${esc(c.name)}</div>`).join("");
   for (let r = 0; r < 5; r++) GAME.categories.forEach((c, ci) => {
     const id = ci + "-" + r, u = state.used[id], v = c.clues[r].value;
     const label = u === "known" ? "Got it" : u === "taught" ? "Missed" : "$" + v;
@@ -936,7 +950,7 @@ function renderConsole() {
       <span class="cb-status">${status}</span>
     </div>
     <section class="cb-panel"><h3>Current</h3>${consoleCurrent(B, nameOf, up, left)}</section>
-    <section class="cb-panel"><h3>Board${busy ? " (finish the current clue first)" : ": tap the square they pick"}</h3>
+    <section class="cb-panel"><h3>Board${state.intro ? " (finish the board intro first)" : busy ? " (finish the current clue first)" : ": tap the square they pick"}</h3>
       <div class="cb-boardwrap">
         <div class="cb-grid">${grid}</div>
         <div class="cb-side">
@@ -962,13 +976,19 @@ function renderConsole() {
 let cardShown = null;
 function consoleCurrent(B, nameOf, up, left) {
   const close = B("data-close", "Back to board");
+  if (!view && state.intro) {
+    const it = state.intro, n = GAME.categories.length;
+    const label = !it.filled ? "Fill the board" : it.shown < n ? `Reveal category ${it.shown + 1}: ${esc(GAME.categories[it.shown].name)}` : "Start playing";
+    return `<div class="cb-cur-head"><span>Board intro</span><span class="v">${it.filled ? `${it.shown} of ${n} categories shown` : "Board empty"}</span></div>
+      <div class="cb-actions">${B("data-intro", label + " →", "big main")}</div>`;
+  }
   if (!view) return left
     ? `<div class="cb-note">No clue open. ${nameOf(state.turn)} picks next.</div>`
     : `<div class="cb-actions">${B("data-final", state.finalDone ? "See final results" : "Play Final Jeopardy", "big main")}</div>`;
   if (view.kind === "deck") {
     const n = deckSlides().length, last = view.i >= n - 1;
     return `<div class="cb-cur-head"><span>${{ rules: "Rules", cats: "Categories", present: "Presentation" }[view.deck]}</span><span class="v">Slide ${view.i + 1} of ${n}</span></div>
-      <div class="cb-actions">${B(`id="deckPrev" ${view.i ? "" : "disabled"}`, "← Back", "big")}${B('id="deckNext"', last ? (view.start ? (view.deck === "rules" ? "Categories →" : "Start the game") : "Done") : "Next →", "big main")}
+      <div class="cb-actions">${B(`id="deckPrev" ${view.i ? "" : "disabled"}`, "← Back", "big")}${B('id="deckNext"', last ? (view.start ? "Show the board →" : "Done") : "Next →", "big main")}
       ${view.deck === "present" ? B('id="deckOnly"', view.only ? "Show all topics" : "Only missed topics") : ""}${B("data-close", "Close")}</div>`;
   }
   if (view.kind === "scores" || view.kind === "list") return `<div class="cb-actions">${close}</div>`;
@@ -1205,6 +1225,8 @@ const Sound = (() => {
   const right = () => play([[76, 0, .15], [84, .12, .35]], "triangle", .2);
   const wrong = () => play([[43, 0, .45], [42, 0, .45]], "sawtooth", .08);
   const timesUp = () => play([[48, 0, .7], [47, 0, .7]], "square", .07);
+  const fill = () => play([...Array(8)].map((_, i) => [76 + (i * 5) % 12, i * .12, .07]), "square", .04);
+  const swipe = () => play([[91, 0, .05], [86, .03, .06], [79, .06, .1]], "triangle", .09);
   const dailyDouble = () => play([60, 64, 67, 72, 76, 79, 84].map((m, i) => [m, i * .07, .5]), "triangle", .14);
   const win = () => play([[67, 0, .2], [72, .15, .2], [76, .3, .2], [79, .45, .5], [76, .8, .18], [79, .95, .9]], "triangle", .2);
   const prime = () => { if (on) audio(); };
@@ -1214,7 +1236,7 @@ const Sound = (() => {
     if (!on) stopMusic();
     return on;
   }
-  return { startMusic, stopMusic, setMusic, get custom() { return custom; }, right, wrong, dailyDouble, win, timesUp, toggle, prime, get on() { return on; }, get playing() { return !!timer; } };
+  return { startMusic, stopMusic, setMusic, get custom() { return custom; }, right, wrong, dailyDouble, win, timesUp, fill, swipe, toggle, prime, get on() { return on; }, get playing() { return !!timer; } };
 })();
 
 function runTimer(seconds) {
@@ -1285,20 +1307,30 @@ function showGame() {
   render();
 }
 
+/* Board intro, like the show: the board starts empty, the dollar amounts fill in a few at a time,
+   then the host reveals the categories one by one and each title swipes in.
+   state.intro = { filled, shown } while it's running; removed once play starts. */
+let seenIntro = null;
 function render() {
-  const b = $("#board");
-  let h = GAME.categories.map(c => `<div class="cat">${esc(c.name)}</div>`).join("");
+  const b = $("#board"), n = GAME.categories.length;
+  const intro = state.intro, cur = { filled: !intro || intro.filled, shown: intro ? intro.shown : n };
+  const prev = seenIntro || cur; seenIntro = cur;
+  let h = GAME.categories.map((c, i) => i < cur.shown
+    ? `<div class="cat${i >= prev.shown ? " swipe" : ""}">${esc(c.name)}</div>`
+    : `<div class="cat" aria-hidden="true"></div>`).join("");
   for (let r = 0; r < 5; r++) GAME.categories.forEach((c, ci) => {
     const id = ci + "-" + r, clue = c.clues[r], used = state.used[id];
     const label = used ? `${c.name}, $${clue.value}, played. Open to review the lesson.` : `${c.name} for $${clue.value}`;
-    h += `<button type="button" class="tile${used ? " used" : ""}" data-id="${id}" aria-label="${esc(label)}">$${clue.value.toLocaleString()}</button>`;
+    h += `<button type="button" class="tile${used ? " used" : ""}${cur.filled ? "" : " blank"}" data-id="${id}" aria-label="${esc(label)}">$${clue.value.toLocaleString()}</button>`;
   });
   b.innerHTML = h;
+  if (!prev.filled && cur.filled) fillBoard(b);
 
   const left = GAME.categories.length * 5 - Object.keys(state.used).length;
   // Once the board is cleared, the turn line becomes the way into Final Jeopardy.
   const tl = $("#turnLine");
-  if (left) tl.textContent = `${teamUp().name} picks the next clue`;
+  if (intro) tl.textContent = "";
+  else if (left) tl.textContent = `${teamUp().name} picks the next clue`;
   else if (LIVE) tl.textContent = "Final Jeopardy";
   else tl.innerHTML = `<button class="btn primary big" type="button" data-final>${state.finalDone ? "See final results" : "Play Final Jeopardy"}</button>`;
   $("#podiums").innerHTML = state.teams.map((t, i) => `
@@ -1313,6 +1345,22 @@ function render() {
   $("#missCount").textContent = missed; $("#missCount").dataset.n = missed;
   if (!LIVE) save();
   scheduleSync();
+}
+
+// Dollar amounts pop in a few squares at a time, in random order (about one second in all).
+function fillBoard(b) {
+  const tiles = [...b.querySelectorAll(".tile:not(.used)")];
+  if (reduceMotion()) return;
+  tiles.forEach(t => t.classList.add("blank"));
+  tiles.sort(() => Math.random() - .5);
+  for (let i = 0; i < tiles.length; i += 4) setTimeout(() => tiles.slice(i, i + 4).forEach(t => t.classList.remove("blank")), 120 * (i / 4));
+}
+function introStep() {
+  const it = state.intro; if (!it) return;
+  if (!it.filled) { it.filled = true; Sound.prime(); Sound.fill(); }
+  else if (it.shown < GAME.categories.length) { it.shown++; Sound.swipe(); }
+  else delete state.intro;
+  render();
 }
 
 /* ---------- Clue overlay ---------- */
@@ -1344,6 +1392,7 @@ let selecting = false;
 function selectTile(el) {
   const id = el.dataset.id || el.dataset.cell;
   if (selecting) return;
+  if (state.intro) return;
   if (state.used[id]) return openClue(id);
   selecting = true;
   el.classList.add("selected");
@@ -1556,7 +1605,7 @@ function drawDeck() {
   const s = slides[view.i], last = view.i === n - 1;
   const toggle = view.deck === "present"
     ? `<button class="btn" id="deckOnly" type="button" aria-pressed="${view.only}">${view.only ? "Show all topics" : "Only missed topics"}</button>` : "";
-  const nextLabel = last ? (view.start ? (view.deck === "rules" ? "Categories" : "Start the game") : "Done") : "Next";
+  const nextLabel = last ? (view.start ? "Show the board" : "Done") : "Next";
   const ov = $("#overlay");
   ov.innerHTML = `<div class="ov-head"><span>${esc(s.head)}</span><span class="val">${esc(s.val || "")}</span><span class="actions">${toggle}<button class="btn" data-close type="button">Close</button></span></div>
     <div class="ov-body">${s.html}</div>
@@ -1570,7 +1619,7 @@ function drawDeck() {
 function deckStep(d) {
   const n = deckSlides().length;
   // At the start of a game, the rules lead straight into the category reveal, then the board.
-  if (d > 0 && view.i === n - 1 && view.start && view.deck === "rules") return openDeck("cats", { start: true });
+  if (d > 0 && view.i === n - 1 && view.start && view.deck === "rules") { state.intro = { filled: false, shown: 0 }; view = null; drawOverlay(); return render(); }
   if (d > 0 && view.i === n - 1) { view = null; return drawOverlay(); }
   view.i += d; drawDeck();
 }
@@ -1674,7 +1723,8 @@ document.addEventListener("click", e => {
   if (t.id === "btnScores") { view = { kind: "scores" }; return drawScores(); }
   if (t.id === "btnList" || t.id === "openList") { view = { kind: "list" }; return drawList(); }
   if (t.id === "btnRules") return openDeck("rules");
-  if (t.id === "btnCats") return openDeck("cats");
+  if (t.id === "btnCats") { state.intro = { filled: true, shown: 0 }; view = null; drawOverlay(); return render(); }
+  if (t.hasAttribute("data-intro")) return introStep();
   if (t.id === "btnPresent" || t.id === "openPresent") return openDeck("present");
   if (t.id === "deckPrev") return deckStep(-1);
   if (t.id === "deckNext") return deckStep(1);
@@ -1768,7 +1818,8 @@ document.addEventListener("keydown", e => {
     if (view.step === "clue" && view.team == null) return document.querySelector(`#overlay [data-pick="${i}"]`)?.click();
     if (view.step === "answer") return document.querySelector(`#overlay [data-award="${i}"]`)?.click();
   }
-  // Slide clickers send PageDown / PageUp; arrow keys work too.
+  // Slide clickers send PageDown / PageUp; arrow keys work too. They also step the board intro.
+  if (!view && state && state.intro && ["ArrowRight", "PageDown"].includes(e.key)) { e.preventDefault(); return introStep(); }
   if (view && view.kind === "deck") {
     if (["ArrowRight", "PageDown"].includes(e.key)) { e.preventDefault(); return deckStep(1); }
     if (["ArrowLeft", "PageUp"].includes(e.key) && view.i > 0) { e.preventDefault(); return deckStep(-1); }
