@@ -807,7 +807,10 @@ function render() {
   b.innerHTML = h;
 
   const left = GAME.categories.length * 5 - Object.keys(state.used).length;
-  $("#turnLine").textContent = left ? `${teamUp().name} picks the next clue` : `Board cleared. Time for Final Jeopardy`;
+  // Once the board is cleared, the turn line becomes the way into Final Jeopardy.
+  const tl = $("#turnLine");
+  if (left) tl.textContent = `${teamUp().name} picks the next clue`;
+  else tl.innerHTML = `<button class="btn primary big" type="button" data-final>${state.finalDone ? "See final results" : "Play Final Jeopardy"}</button>`;
   $("#podiums").innerHTML = state.teams.map((t, i) => `
     <div class="podium${left && i === state.turn ? " up" : ""}">
       <span class="p-score${t.score < 0 ? " neg" : ""}">${money(t.score)}</span>
@@ -1156,7 +1159,7 @@ document.addEventListener("click", e => {
     if (Sound.playing) return Sound.stopMusic();
     Sound.prime(); return Sound.startMusic(30);
   }
-  if (t.id === "btnFinal") return openFinal();
+  if (t.id === "btnFinal" || t.hasAttribute("data-final")) return openFinal();
   if (t.id === "btnReset") {
     if (t.dataset.armed) { toggleMenu(false); return showSetup(); }
     t.dataset.armed = "1"; setLabel("#btnReset", "Click again to end this game");
