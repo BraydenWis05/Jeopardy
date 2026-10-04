@@ -61,6 +61,22 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .btn.primary { background: var(--gold); color: #000; }
 .btn.big { padding: 12px 22px; font-size: 20px; }
 .btn.right { background: #0d6b45; }
+/* Live screen (projector): everything the host clicks is hidden; it only mirrors the control board. */
+body.live .menu, body.live .host, body.live .btn, body.live input, body.live .wager label { display: none !important; }
+body.live { cursor: none; }
+body.live .ov-head { position: relative; min-height: 38px; }
+body.live .ov-head .val { position: absolute; left: 50%; transform: translateX(-50%); }
+.live-full.idle { opacity: 0; pointer-events: none; }
+.live-full {
+  position: fixed; z-index: 20; bottom: 16px; right: 16px; transition: opacity .3s; cursor: pointer; border: 2px solid #000; padding: 10px 18px;
+  background: var(--gold); color: #000; font: 700 18px/1 var(--font-ui); text-transform: uppercase; letter-spacing: .05em;
+}
+.live-badge {
+  position: fixed; z-index: 20; left: 10px; bottom: 10px; padding: 4px 10px; border: 1px solid #000;
+  background: #0d6b45; font: 700 13px/1.2 var(--font-ui); text-transform: uppercase; letter-spacing: .06em;
+}
+.host-answer { margin: 0 0 4px; padding: 6px 8px; background: rgba(0, 0, 0, .35); font: 600 16px/1.3 var(--font-clue); max-width: 320px; white-space: normal; }
+.host-answer b { display: block; font: 700 12px/1.2 var(--font-ui); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
 .host { position: fixed; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); z-index: 2; }
 .host-tab {
   opacity: .5; border: 1px solid var(--rim); background: var(--bezel); padding: 6px 12px;
@@ -373,14 +389,25 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div class="setup-actions">
       <button class="btn primary big" type="submit">Start game</button>
       <button class="btn big" type="button" id="resume" hidden>Resume saved game</button>
+      <button class="btn big" type="button" data-open-live>Open live screen</button>
     </div>
   </form>
 </main>
+<main class="setup" id="waiting" hidden>
+  <div class="setup-card">
+    <h1 class="title">UX Trends Jeopardy</h1>
+    <p>Live screen. Waiting for the control board to start a game.</p>
+  </div>
+</main>
+<button class="live-full" id="liveFull" type="button" hidden>Full screen</button>
+<div class="live-badge" id="liveBadge" hidden>Live screen on</div>
 
 <div class="app" id="game" hidden>
   <div class="menu" id="menu">
     <button class="menu-btn" id="menuBtn" type="button" aria-label="Game menu" aria-expanded="false" aria-controls="menuList"><span></span><span></span><span></span></button>
     <div class="menu-list" id="menuList" hidden>
+      <button data-open-live type="button"><span class="lbl">Open live screen</span></button>
+      <hr>
       <button id="btnPresent" type="button"><span class="lbl">Presentation mode</span><kbd>P</kbd></button>
       <button id="btnList" type="button"><span class="lbl">Topics to teach</span><span class="count" id="missCount">0</span><kbd>T</kbd></button>
       <button id="btnRules" type="button"><span class="lbl">Rules</span><kbd>R</kbd></button>
@@ -620,6 +647,97 @@ const GAME = {
 };
 
 /* ===================== GAME LOGIC ===================== */
+/* ---------- Control board + live screen ----------
+   The normal page is the control board. "Open live screen" opens this same page with ?screen=live;
+   drag that window onto the projector. The control board sends the whole game to it after every
+   change (BroadcastChannel, same computer and browser only). Sounds play from the control board. */
+const LIVE = new URLSearchParams(location.search).get("screen") === "live";
+const chan = "BroadcastChannel" in window ? new BroadcastChannel("ux-jeopardy-live") : null;
+let liveOn = false, lastPing = 0, syncQueued = false, syncZoom = null, syncTimer = null, liveTick = null, lastViewJSON = null;
+
+function scheduleSync() {
+  if (LIVE || !chan || syncQueued) return;
+  syncQueued = true;
+  queueMicrotask(() => {
+    syncQueued = false;
+    chan.postMessage({ type: "state", phase: $("#game").hidden ? "setup" : "game", state, view, zoom: syncZoom, timer: syncTimer });
+    syncZoom = syncTimer = null;
+  });
+}
+function openLive() {
+  const url = location.pathname + "?screen=live";
+  const w = window.open(url, "ux-jeopardy-live", "popup,width=1280,height=720");
+  if (!w) alert("Your browser blocked the live screen window. Allow pop-ups for this site, then try again.");
+}
+function setLiveOn(on) {
+  if (on === liveOn) return;
+  liveOn = on;
+  $("#liveBadge").hidden = !on;
+  document.querySelectorAll("button[data-open-live]").forEach(b => { (b.querySelector(".lbl") || b).textContent = on ? "Live screen is open" : "Open live screen"; });
+}
+if (!LIVE && chan) {
+  chan.onmessage = ({ data }) => {
+    if (data.type === "hello" || data.type === "ping") {
+      lastPing = Date.now(); setLiveOn(true);
+      if (data.type === "hello") { lastViewJSON = null; scheduleSync(); }
+    }
+    if (data.type === "bye") setLiveOn(false);
+  };
+  setInterval(() => { if (liveOn && Date.now() - lastPing > 5000) setLiveOn(false); }, 2000);
+}
+
+function startLive() {
+  document.body.classList.add("live");
+  document.title = "UX Trends Jeopardy (live screen)";
+  $("#setup").hidden = true; $("#game").hidden = true; $("#waiting").hidden = false;
+  $("#liveFull").hidden = false;
+  document.addEventListener("fullscreenchange", () => { $("#liveFull").hidden = !!document.fullscreenElement; });
+  // The Full screen button shows when the mouse moves and tucks itself away after a few seconds.
+  let idle;
+  const wake = () => { $("#liveFull").classList.remove("idle"); clearTimeout(idle); idle = setTimeout(() => $("#liveFull").classList.add("idle"), 4000); };
+  document.addEventListener("mousemove", wake); wake();
+  if (!chan) { $("#waiting p").textContent = "This browser can't run a live screen. Try Chrome, Edge or Firefox."; return; }
+  chan.onmessage = ({ data }) => {
+    if (data.type === "select") return document.querySelector(`.tile[data-id="${data.id}"]`)?.classList.add("selected");
+    if (data.type === "state") applyFromControl(data);
+  };
+  chan.postMessage({ type: "hello" });
+  setInterval(() => chan.postMessage({ type: "ping" }), 2000);
+  addEventListener("pagehide", () => chan.postMessage({ type: "bye" }));
+}
+function applyFromControl(msg) {
+  if (msg.phase === "setup" || !msg.state) {
+    state = null; view = null; lastViewJSON = null; drawOverlay();
+    $("#game").hidden = true; $("#waiting").hidden = false;
+    return;
+  }
+  state = msg.state;
+  $("#waiting").hidden = true; $("#game").hidden = false;
+  const vj = JSON.stringify(msg.view);
+  const changed = vj !== lastViewJSON;
+  if (changed) { view = msg.view; lastViewJSON = vj; }
+  render();
+  if (changed) {
+    if (msg.zoom) { const el = document.querySelector(`.tile[data-id="${msg.zoom}"]`); if (el) zoomFrom = el.getBoundingClientRect(); }
+    drawOverlay();
+  }
+  if (msg.timer) liveTimer(msg.timer);
+}
+// The live screen runs the countdown on its own; the music plays from the control board.
+function liveTimer(seconds) {
+  const box = $("#timer"); if (!box) return;
+  box.hidden = false; box.classList.remove("done");
+  const end = Date.now() + seconds * 1000;
+  clearInterval(liveTick);
+  const tick = () => {
+    const n = Math.max(0, Math.ceil((end - Date.now()) / 1000)), l = box.querySelector(".left");
+    if (l) l.textContent = n ? n + "s" : "Time's up";
+    if (!n) { box.classList.add("done"); clearInterval(liveTick); }
+  };
+  tick(); liveTick = setInterval(tick, 250);
+}
+
+
 const STORE_KEY = "ux-jeopardy-v3";
 const TEAM_COUNT = 3, TEAM_SIZE = 4;
 const $ = s => document.querySelector(s);
@@ -745,6 +863,7 @@ const Sound = (() => {
 
 function runTimer(seconds) {
   const box = $("#timer"); if (!box) return;
+  syncTimer = seconds; scheduleSync();
   box.hidden = false; box.classList.remove("done");
   Sound.startMusic(seconds,
     n => { const l = box.querySelector(".left"); if (l) l.textContent = n ? n + "s" : "Time's up"; },
@@ -824,6 +943,7 @@ function render() {
   // Once the board is cleared, the turn line becomes the way into Final Jeopardy.
   const tl = $("#turnLine");
   if (left) tl.textContent = `${teamUp().name} picks the next clue`;
+  else if (LIVE) tl.textContent = "Final Jeopardy";
   else tl.innerHTML = `<button class="btn primary big" type="button" data-final>${state.finalDone ? "See final results" : "Play Final Jeopardy"}</button>`;
   $("#podiums").innerHTML = state.teams.map((t, i) => `
     <div class="podium${left && i === state.turn ? " up" : ""}">
@@ -835,7 +955,8 @@ function render() {
 
   const missed = Object.values(state.used).filter(v => v === "taught").length + (state.finalDone === "taught" ? 1 : 0);
   $("#missCount").textContent = missed; $("#missCount").dataset.n = missed;
-  save();
+  if (!LIVE) save();
+  scheduleSync();
 }
 
 /* ---------- Clue overlay ---------- */
@@ -872,7 +993,8 @@ function selectTile(el) {
   el.classList.add("selected");
   Sound.prime();
   // Flash the square, then the clue card grows out of it to fill the screen.
-  setTimeout(() => { selecting = false; zoomFrom = el.getBoundingClientRect(); openClue(id); }, reduceMotion() ? 0 : 250);
+  if (chan) chan.postMessage({ type: "select", id });
+  setTimeout(() => { selecting = false; zoomFrom = el.getBoundingClientRect(); syncZoom = id; openClue(id); }, reduceMotion() ? 0 : 250);
 }
 const reduceMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 let zoomFrom = null;
@@ -906,9 +1028,10 @@ function finishClue(result, winner) { state.used[view.id] = result; nextTurn(win
 // Host-only buttons live in a small tab in the bottom-right corner and open on hover (or tap),
 // so the class sees just the clue.
 let hostOpen = false;   // stays open between clicks until the mouse leaves the tab
-const hostPanel = inner => `<div class="host${hostOpen ? " open" : ""}"><button class="host-tab" type="button" aria-label="Host controls">Host</button><div class="host-panel">${inner}</div></div>`;
+// With a live screen on the projector, this screen is private: keep the panel open and show the answer.
+const hostPanel = (inner, answer) => `<div class="host${hostOpen || liveOn ? " open" : ""}"><button class="host-tab" type="button" aria-label="Host controls">Host</button><div class="host-panel">${liveOn && answer ? `<p class="host-answer"><b>Answer</b>${esc(answer)}</p>` : ""}${inner}</div></div>`;
 function drawOverlay() {
-  Sound.stopMusic();
+  Sound.stopMusic(); clearInterval(liveTick); scheduleSync();
   const ov = $("#overlay");
   if (!view) { ov.hidden = true; ov.innerHTML = ""; ov.style.animation = ""; return; }
   if (view.kind === "list") return drawList();
@@ -948,7 +1071,7 @@ function drawOverlay() {
         <p class="clue">${esc(clue.clue)}</p>
         ${missed}
         ${view.out.length ? "" : timerHtml}
-        ${hostPanel(`${buttons}<button class="btn" id="reveal" type="button">Show answer</button>`)}`;
+        ${hostPanel(`${buttons}<button class="btn" id="reveal" type="button">Show answer</button>`, clue.answer)}`;
       break;
     }
     case "answer": {
@@ -984,6 +1107,7 @@ function drawOverlay() {
 
 /* ---------- Scores ---------- */
 function drawScores() {
+  scheduleSync();
   const ov = $("#overlay");
   ov.innerHTML = `<div class="ov-head"><span>Fix scores</span><button class="btn" data-close type="button">Close</button></div>
     <div class="ov-body"><div class="scoreboard">${state.teams.map((t, i) => `
@@ -998,6 +1122,7 @@ function drawScores() {
 
 /* ---------- Teaching list ---------- */
 function drawList() {
+  scheduleSync();
   Sound.stopMusic();
   const items = [];
   GAME.categories.forEach((c, ci) => c.clues.forEach((cl, ri) => {
@@ -1059,6 +1184,7 @@ function presentSlides(onlyMissed) {
 function openDeck(deck, extra = {}) { view = { kind: "deck", deck, i: 0, only: false, ...extra }; drawDeck(); }
 function deckSlides() { return view.deck === "rules" ? rulesSlides() : presentSlides(view.only); }
 function drawDeck() {
+  scheduleSync();
   Sound.stopMusic();
   const slides = deckSlides(), n = slides.length;
   view.i = Math.min(Math.max(0, view.i), n - 1);
@@ -1090,6 +1216,7 @@ function openFinal() {
   drawFinal();
 }
 function drawFinal() {
+  scheduleSync();
   Sound.stopMusic();
   const F = GAME.final, ov = $("#overlay");
   let body = "";
@@ -1103,6 +1230,7 @@ function drawFinal() {
   } else if (view.step === "clue") {
     body = `<p class="clue">${esc(F.clue)}</p>
       ${timerHtml}
+      ${liveOn ? `<p class="host-answer" style="margin:0 auto"><b>Answer (only on this screen)</b>${esc(F.answer)}</p>` : ""}
       <div class="actions"><button class="btn primary big" id="finalReveal" type="button">Reveal answer</button></div>`;
   } else if (view.step === "answer") {
     const done = state.teams.every((_, i) => !view.playing[i] || view.judged[i]);
@@ -1155,6 +1283,8 @@ document.addEventListener("mousemove", e => {
 document.addEventListener("click", e => {
   const t = e.target.closest("button");
   if (!t) return;
+  if (LIVE) { if (t.id === "liveFull") document.documentElement.requestFullscreen?.().catch(() => {}); return; }
+  if (t.hasAttribute("data-open-live")) return openLive();
   hostOpen = !!t.closest(".host-panel");
   if (t.id === "resume") { state = loadSaved(); return showGame(); }
   if (t.id === "menuBtn") return toggleMenu();
@@ -1253,6 +1383,7 @@ document.addEventListener("click", e => {
 // Host shortcuts, for when the menu is out of reach: P, T, R, F, S, M.
 const SHORTCUTS = { p: "#btnPresent", t: "#btnList", r: "#btnRules", f: "#btnFinal", s: "#btnScores", m: "#btnMusic" };
 document.addEventListener("keydown", e => {
+  if (LIVE) return;
   if (e.key === "Escape" && !$("#menuList").hidden) return toggleMenu(false);
   if (e.key === "Escape" && view) return document.querySelector("#overlay [data-close]")?.click();
   if (e.target.closest("input")) return;
@@ -1282,12 +1413,15 @@ $("#musicFile").addEventListener("change", e => {
 
 /* ---------- Boot ---------- */
 buildSetup();
+if (LIVE) startLive();
+else {
+  window.claude?.hot?.snapshot?.(() => state ? { state, view } : {});
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+}
 function start(data) {
   if (data && data.state) { state = data.state; view = data.view || null; showGame(); drawOverlay(); }
   else showSetup();
 }
-window.claude?.hot?.snapshot?.(() => state ? { state, view } : {});
-window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
 </script>
 </body>
 </html>
