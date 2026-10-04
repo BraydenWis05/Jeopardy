@@ -1400,7 +1400,8 @@ function drawOverlay() {
   const amount = view.wager ?? clue.value;
   const nameOf = i => esc(state.teams[i].name);
   const whoOf = i => `${esc(playerUp(i))}<small>for ${nameOf(i)}</small>`;
-  const missed = view.out && view.out.length ? `<p class="hint out">Missed: ${view.out.map(i => esc(playerUp(i))).join(", ")}</p>` : "";
+  // Who missed is for the host only (the control board shows it); the projector just shows the clue.
+  const missed = "";
   let body = "";
 
   switch (view.step) {
@@ -1440,8 +1441,7 @@ function drawOverlay() {
       break;
     }
     case "known":
-      body = `<p class="status known">${esc(view.winnerName)} got it for ${nameOf(view.winner)}!</p>
-        <p class="answer">${esc(clue.answer)}</p>
+      body = `        <p class="answer">${esc(clue.answer)}</p>
         <div class="actions"><button class="btn primary big" data-close type="button">Back to board</button>
           <button class="btn big" id="teachAnyway" type="button">Show the lesson anyway</button></div>`;
       break;
