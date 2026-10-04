@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UX Trends Jeopardy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Anton&family=Barlow:wght@400;500;600;700&family=Spectral:wght@500;700&display=swap">
+<style>
+/* Layout: game-show stage. Setup screen -> board with a turn bar -> full-screen clue.
+   Missed clues open a paper lesson card. */
+:root {
+  color-scheme: dark;
+  --night: #060b30;
+  --board: #0c1d8a;
+  --board-hi: #1530c4;
+  --board-used: #09134f;
+  --gold: #eba43f;
+  --ink: #ffffff;
+  --ink-soft: #aab5f0;
+  --line: #24338f;
+  --right: #3ddc97;
+  --wrong: #ff7a7a;
+  --paper: #f4f6ff;
+  --paper-ink: #111a4a;
+  --paper-soft: #59628f;
+  --stage: #02030c;
+  --stage-glow: #0b1452;
+  --tile-top: #1528c6;
+  --tile-bottom: #0a17a4;
+  --grid: #050821;
+  --bezel: #03051a;
+  --rim: #19226b;
+  --pillar: #4f6dff;
+  --pillar-core: #dbe6ff;
+  --lamp: #ffc861;
+  --podium: #070b2c;
+  --font-board: "Anton", "Impact", "Arial Narrow", sans-serif;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-clue: "Spectral", Georgia, "Times New Roman", serif;
+  --font-ui: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--night); color: var(--ink); font: 500 15px/1.45 var(--font-ui); }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .4; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+.btn {
+  border: 1px solid var(--line); background: transparent; border-radius: 6px;
+  padding: 8px 14px; font-weight: 600; font-size: 14px;
+}
+.btn:hover:not(:disabled) { background: var(--board-used); }
+.btn.primary { background: var(--gold); color: var(--night); border-color: var(--gold); }
+.btn.primary:hover:not(:disabled) { background: #ffd35f; }
+.btn.big { padding: 12px 22px; font-size: 16px; }
+.btn.right { border: 2px solid var(--right); color: var(--right); }
+.btn.right:hover { background: var(--right); color: var(--night); }
+.btn.wrong { border: 2px solid var(--wrong); color: var(--wrong); }
+.btn.wrong:hover { background: var(--wrong); color: var(--night); }
+.title {
+  margin: 0; font: 800 clamp(28px, 4vw, 40px)/1 var(--font-display);
+  text-transform: uppercase; letter-spacing: .02em; color: var(--gold);
+}
+
+/* Setup */
+.setup { min-height: 100%; display: grid; place-items: center; padding-inline: 16px; padding-block: 32px; }
+.setup-card {
+  width: 100%; max-width: 440px; display: grid; gap: 20px;
+  background: var(--board); border: 1px solid var(--line); border-radius: 10px; padding: 28px;
+}
+.setup-card .title { font-size: clamp(34px, 6vw, 48px); }
+.setup-card p { margin: 0; color: var(--ink-soft); }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
+.field input {
+  background: var(--night); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-size: 16px;
+}
+.setup-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Game: the TV set. Bronze top band with a row of lights, orange ladder pillars edged in blue,
+   a charcoal frame around a flat blue board split by black lines, a blue neon floor. */
+.app {
+  height: 100%; min-height: 620px; display: flex; flex-direction: column; gap: 10px;
+  padding-inline: 16px; padding-block: 12px;
+  background:
+    radial-gradient(circle at 96% 62%, rgba(150, 60, 210, .35), transparent 28%),
+    radial-gradient(ellipse 75% 65% at 50% 42%, #11164c, #04050f 78%);
+}
+.stage {
+  flex: 1; min-height: 0; width: 100%; max-width: 1500px; margin: 0 auto;
+  display: grid; grid-template-columns: 62px minmax(0, 1fr) 62px; grid-template-rows: 44px 1fr 22px; column-gap: 18px;
+}
+.lamps {
+  grid-column: 1 / -1; position: relative; border-radius: 10px 10px 0 0;
+  background: linear-gradient(#2c1e12, #70502e 45%, #3a2817 80%, #1a120b);
+  box-shadow: 0 2px 0 #000;
+}
+.lamps::before {
+  content: ""; position: absolute; left: 2%; right: 2%; top: 7px; height: 3px; border-radius: 2px;
+  background: var(--lamp); box-shadow: 0 0 6px var(--lamp), 0 8px 0 #c98d3f, 0 8px 6px rgba(255, 190, 90, .6);
+}
+.lamps::after {
+  content: ""; position: absolute; left: 3%; right: 3%; bottom: 5px; height: 9px; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, #cfe8ff 0 52px, #1d2846 52px 58px);
+  box-shadow: 0 0 10px rgba(160, 210, 255, .8);
+}
+.pillar {
+  grid-row: 2; display: grid; grid-template-rows: repeat(10, 1fr); padding: 10px 12px; margin-block: 8px;
+  background: #0a0e2c; border: 4px solid #5aa8ff; border-radius: 3px;
+  box-shadow: 0 0 12px rgba(90, 168, 255, .9), 0 0 30px rgba(60, 120, 255, .45), inset 0 0 10px rgba(90, 168, 255, .55);
+}
+.pillar i {
+  margin-inline: -22px;
+  background:
+    linear-gradient(#a3a5ad, #6a6d75) top / 100% 5px no-repeat,
+    linear-gradient(90deg, #b0501a, #f59b3e 50%, #b0501a) center / calc(100% - 46px) 100% no-repeat;
+}
+.pillar i:last-child { background:
+    linear-gradient(#a3a5ad, #6a6d75) top / 100% 5px no-repeat,
+    linear-gradient(#a3a5ad, #6a6d75) bottom / 100% 5px no-repeat,
+    linear-gradient(90deg, #b0501a, #f59b3e 50%, #b0501a) center / calc(100% - 46px) 100% no-repeat; }
+.bezel {
+  grid-row: 2; grid-column: 2; display: flex; padding: 14px; border-radius: 12px; overflow-x: auto;
+  background: linear-gradient(#24252c, #141519); box-shadow: inset 0 0 0 2px #31333c, 0 0 0 2px #050507;
+}
+.board {
+  flex: 1; min-width: 720px; display: grid; grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: 1fr repeat(5, 1fr); gap: 6px; padding: 6px; background: #000;
+}
+.floor {
+  grid-column: 1 / -1; grid-row: 3; align-self: end; height: 12px; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, #3a74ff 0 140px, #0d1a55 140px 144px);
+  box-shadow: 0 0 22px 4px rgba(40, 100, 255, .6);
+}
+.cat, .tile {
+  border: 0; border-radius: 0; min-height: 48px;
+  background: linear-gradient(var(--tile-top), var(--tile-bottom));
+  box-shadow: inset 0 0 18px rgba(0, 0, 50, .45);
+  display: grid; place-items: center; text-align: center; padding: 6px 8px;
+}
+.cat {
+  color: #fff; font: 400 clamp(16px, 1.9vw, 28px)/1.05 var(--font-board); letter-spacing: .02em;
+  text-transform: uppercase; text-wrap: balance; text-shadow: 2px 2px 0 #000;
+}
+.tile {
+  color: var(--gold); font: 400 clamp(28px, 3.7vw, 58px)/1 var(--font-board); letter-spacing: .05em;
+  text-shadow: 3px 3px 0 #000, 4px 4px 3px rgba(0,0,0,.5); font-variant-numeric: tabular-nums;
+  transition: filter .15s;
+}
+.tile:hover { filter: brightness(1.2); }
+.tile.used { color: transparent; text-shadow: none; }
+.tile.used:hover { filter: brightness(1.08); }
+.tile.selected {
+  position: relative; z-index: 1; color: #fff; text-shadow: 2px 2px 0 #000;
+  font: 400 clamp(11px, 1.15vw, 17px)/1.25 var(--font-board); letter-spacing: .02em; text-transform: uppercase; filter: none;
+  box-shadow: 0 0 0 2px #e6eeff, 0 0 26px 6px rgba(140, 180, 255, .85);
+}
+
+.bar { display: flex; justify-content: center; align-items: center; gap: 10px 18px; flex-wrap: wrap; }
+.turn-line { margin: 0; font: 400 clamp(18px, 2vw, 26px)/1.1 var(--font-board); text-transform: uppercase; letter-spacing: .04em; }
+.turn-line b { color: var(--gold); font-weight: 400; }
+.scoreboard { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 960px; }
+.score-card { background: rgba(0, 0, 20, .35); border-radius: 8px; padding: 18px 14px; display: grid; gap: 10px; min-width: 0; }
+.score-card.up { box-shadow: 0 0 0 2px var(--gold); }
+.score-card .name { font: 400 clamp(20px, 2.4vw, 30px)/1.1 var(--font-board); text-transform: uppercase; letter-spacing: .03em; overflow-wrap: anywhere; }
+.score-card .score { font: 400 clamp(40px, 6vw, 76px)/1 var(--font-board); color: #fff; text-shadow: 3px 3px 0 #000; font-variant-numeric: tabular-nums; }
+.score-card .score.neg { color: var(--wrong); }
+.score-card .adj { display: flex; justify-content: center; gap: 8px; }
+.score-card .adj button { border: 1px solid rgba(255,255,255,.25); background: transparent; color: var(--ink-soft); font-size: 13px; padding: 3px 10px; border-radius: 4px; }
+.score-card .adj button:hover { background: rgba(0,0,0,.3); color: var(--ink); }
+@media (max-width: 700px) { .scoreboard { grid-template-columns: 1fr; } }
+
+.menu { position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 8px); right: 10px; }
+.menu-btn {
+  opacity: .2; border: 1px solid var(--rim); background: var(--bezel); border-radius: 6px; padding: 5px 9px;
+  display: grid; gap: 3px; transition: opacity .15s;
+}
+.menu-btn span { display: block; width: 16px; height: 2px; background: var(--ink-soft); border-radius: 1px; }
+.menu-btn:hover, .menu-btn:focus-visible, .menu.open .menu-btn { opacity: 1; }
+.menu-list {
+  position: absolute; right: 0; top: calc(100% + 6px); min-width: 210px; display: grid; padding: 6px;
+  background: var(--podium); border: 1px solid var(--rim); border-radius: 8px; box-shadow: 0 12px 30px rgba(0,0,0,.6);
+}
+.menu-list button { text-align: left; background: transparent; border: 0; border-radius: 6px; padding: 9px 12px; font-weight: 600; }
+.menu-list button:hover { background: var(--board-used); }
+.count {
+  display: inline-block; min-width: 1.5em; padding: 0 6px; margin-left: 6px; border-radius: 999px;
+  background: var(--wrong); color: var(--night); font-size: 12px; font-weight: 700;
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+.count[data-n="0"] { background: var(--line); color: var(--ink-soft); }
+
+@media (max-width: 700px) {
+  .app { height: auto; }
+  .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: 30px auto 24px; }
+  .pillar { display: none; }
+  .bezel { grid-column: 1; }
+}
+
+/* Overlay */
+.overlay {
+  position: fixed; inset: 0; z-index: 10;
+  background: linear-gradient(var(--tile-top), var(--tile-bottom)); display: flex; flex-direction: column; overflow-y: auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  animation: open .2s ease-out;
+}
+@keyframes open { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .overlay { animation: none; } .tile, .menu-btn { transition: none; } }
+.ov-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  font: 700 clamp(16px, 2vw, 22px)/1.1 var(--font-display); text-transform: uppercase; letter-spacing: .05em;
+}
+.ov-head .val { color: var(--gold); font-variant-numeric: tabular-nums; }
+.ov-body {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  padding-block: 20px; max-width: 1000px; width: 100%; margin: 0 auto; text-align: center;
+}
+.who { font: 700 15px/1 var(--font-ui); text-transform: uppercase; letter-spacing: .1em; color: var(--gold); }
+.clue { margin: 0; font: 700 clamp(24px, 3.6vw, 46px)/1.25 var(--font-clue); text-transform: uppercase; text-shadow: 2px 3px 0 #000; text-wrap: balance; }
+.clue.small { font-size: clamp(17px, 2vw, 26px); text-shadow: none; color: var(--ink-soft); }
+.answer { font: 700 clamp(22px, 2.8vw, 34px)/1.3 var(--font-clue); color: var(--gold); text-wrap: balance; margin: 0; }
+.big-word { font: 800 clamp(48px, 9vw, 104px)/.9 var(--font-display); text-transform: uppercase; color: var(--gold); text-shadow: 4px 5px 0 #000; }
+.hint { color: var(--ink-soft); font-size: 14px; margin: 0; }
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.status { font: 700 18px/1.3 var(--font-ui); margin: 0; }
+.status.known { color: var(--right); }
+.status.taught { color: var(--wrong); }
+.inline { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; width: 100%; max-width: 720px; }
+.inline .field { flex: 1 1 180px; text-align: left; }
+
+.lesson {
+  background: var(--paper); color: var(--paper-ink); border-radius: 6px; padding: 22px 24px;
+  text-align: left; width: 100%; max-width: 760px; display: grid; gap: 12px;
+}
+.lesson .tag { font: 700 12px/1 var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--paper-soft); }
+.lesson h2 { margin: 0; font: 700 26px/1.15 var(--font-clue); text-wrap: balance; }
+.lesson h2::first-letter { text-transform: uppercase; }
+.lesson p { margin: 0; font-size: 16px; line-height: 1.55; max-width: 65ch; }
+.lesson .label { display: block; margin-bottom: 2px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--paper-soft); }
+.lesson .discuss { border-left: 3px solid var(--board); padding-left: 12px; }
+
+.timer { width: 100%; max-width: 640px; display: grid; gap: 6px; }
+.timer .track { height: 10px; border-radius: 999px; background: var(--board-used); overflow: hidden; }
+.timer .fill { height: 100%; background: var(--gold); transform-origin: left; animation: drain 30s linear forwards; }
+.timer .left { font: 700 22px/1 var(--font-display); color: var(--gold); font-variant-numeric: tabular-nums; }
+.timer.done .left { color: var(--wrong); }
+@keyframes drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.out { color: var(--wrong); }
+.list { display: grid; gap: 14px; width: 100%; max-width: 820px; }
+.list .lesson { max-width: none; }
+.stats { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.stat { background: var(--board-used); border-radius: 8px; padding: 10px 16px; min-width: 120px; }
+.stat b { display: block; font: 800 32px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.stat.k b { color: var(--right); } .stat.t b { color: var(--wrong); }
+.stat span { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .08em; }
+</style>
+</head>
+<body>
+<main class="setup" id="setup" hidden>
+  <form class="setup-card" id="setupForm">
+    <h1 class="title">UX Trends Jeopardy</h1>
+    <p>Enter your three team names. Teams take turns picking a clue.</p>
+    <div class="field"><label for="name-0">Team 1</label><input id="name-0" maxlength="24" placeholder="Team 1" autocomplete="off"></div>
+    <div class="field"><label for="name-1">Team 2</label><input id="name-1" maxlength="24" placeholder="Team 2" autocomplete="off"></div>
+    <div class="field"><label for="name-2">Team 3</label><input id="name-2" maxlength="24" placeholder="Team 3" autocomplete="off"></div>
+    <div class="setup-actions">
+      <button class="btn primary big" type="submit">Start game</button>
+      <button class="btn big" type="button" id="resume" hidden>Resume saved game</button>
+    </div>
+  </form>
+</main>
+
+<div class="app" id="game" hidden>
+  <div class="menu" id="menu">
+    <button class="menu-btn" id="menuBtn" type="button" aria-label="Game menu" aria-expanded="false" aria-controls="menuList"><span></span><span></span><span></span></button>
+    <div class="menu-list" id="menuList" hidden>
+      <button id="btnList" type="button">Topics to teach<span class="count" id="missCount">0</span></button>
+      <button id="btnFinal" type="button">Final Jeopardy</button>
+      <button id="btnFull" type="button">Full screen</button>
+      <button id="btnSound" type="button" aria-pressed="true">Sound on</button>
+      <button id="btnReset" type="button">New game</button>
+    </div>
+  </div>
+  <h1 class="sr-only">UX Trends Jeopardy</h1>
+  <div class="stage">
+    <div class="lamps" aria-hidden="true"></div>
+    <div class="pillar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="bezel"><div class="board" id="board" aria-label="Game board"></div></div>
+    <div class="pillar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="floor" aria-hidden="true"></div>
+  </div>
+  <div class="bar"><p class="turn-line" id="turnLine" aria-live="polite"></p><button class="btn" id="btnScores" type="button">Scores</button></div>
+</div>
+<div class="overlay" id="overlay" hidden></div>
+
+
+<script>
+/* =====================================================================
+   GAME CONTENT. Edit anything in GAME to change the questions.
+   Each clue has: value, clue (read aloud), answer, note (what you say
+   if nobody gets it) and ask (a question for the class).
+   Questions written by the class team (Chris, Braydon, Joaquin).
+   ===================================================================== */
+const GAME = {
+  categories: [
+    { name: "UX-cellent", clues: [
+      { value: 100, clue: "What 2026 accessibility framework replaces rigid pass/fail audit checklists with persistent toggles so users can customize font size, contrast and motion themselves?",
+        answer: "What is Comfort Mode?",
+        note: "Instead of checking boxes on an audit, the app hands the settings to the user. Bigger text, more contrast, less motion, and it remembers what you picked. Your phone already does a version of this in Settings > Accessibility. The paper we read says accessibility is a requirement now, and in Europe it's the law.",
+        ask: "Which of those settings would you actually turn on?" },
+      { value: 200, clue: "Instead of displaying endless chart walls, 2026 dashboard UX focuses on highlighting what primary element first?",
+        answer: "What are key decisions and actionable next steps?",
+        note: "Nobody wants to stare at twelve charts to figure out what's wrong. A good dashboard just tells you: \"3 orders are late, call these customers.\" The charts are still there if you want to dig in.",
+        ask: "What app shows you way too much data?" },
+      { value: 300, clue: "When prototyping unpredictable AI features where outputs change every time, what non-linear flow model do designers use?",
+        answer: "What are probabilistic user flows?",
+        note: "Normal flows are a straight line. Tap this, see that. AI can give a different answer every time, so you have to plan for the good answer, the half-right answer, the wrong one, and \"I don't know.\"",
+        ask: "What should an AI app do when it isn't sure?" },
+      { value: 400, clue: "In virtual reality environments, what eye-tracking metric allows adaptive screens to automatically simplify content when a user gets mentally overwhelmed?",
+        answer: "What is pupil dilation?",
+        note: "Your pupils get bigger when your brain is working hard. Some VR headsets track your eyes, so they can notice when you're overloaded and cut back what's on screen. Cool, but that's very personal data to hand over.",
+        ask: "Would you let an app watch your eyes?" },
+      { value: 500, clue: "Instead of complex textbook math formulas, what operational metric do working designers track to prove financial ROI to executives?",
+        answer: "What is customer support ticket volume (or development rework and complaints)?",
+        note: "Bosses care about money. If a redesign means way fewer people emailing support with \"I can't log in,\" that's money saved, and it's easy to show on one slide.",
+        ask: "What else could prove a redesign worked?" }
+    ]},
+    { name: "Pixel Perfect", clues: [
+      { value: 100, clue: "Name the design language developed by Apple as a unified visual theme for the graphical user interfaces of its suite of operating systems.",
+        answer: "What is Liquid Glass?",
+        note: "Apple's 2025 redesign across iPhone, iPad, Mac, Watch and TV. Buttons and tab bars look like see-through glass. A lot of people said it was hard to read, so Apple added a setting to make it more solid.",
+        ask: "Is see-through glass a good idea for buttons?" },
+      { value: 200, clue: "What is the layout style that organizes information into a grid of clean, asymmetrical compartments of varying sizes, inspired by traditional Japanese lunchboxes?",
+        answer: "What is a bento box (bento grid)?",
+        note: "Content goes in boxes of different sizes, like a bento lunch. The big box is the important one. Apple uses it all over their product pages.",
+        ask: "Find a bento grid on a website you use." },
+      { value: 300, clue: "What is a human-computer interaction system that allows users to communicate with a device or software using two or more distinct sensory or communication modes?",
+        answer: "What is a multimodal interface?",
+        note: "More than one way to talk to a device: touch, voice, gestures, typing. You ask your phone a question out loud, then tap the answer. It also helps people who can't use one of those inputs.",
+        ask: "When would you rather talk than tap?" },
+      { value: 400, clue: "What is an image-processing technique that smooths pictures and reduces noise by blending pixel values using a bell-shaped mathematical formula?",
+        answer: "What is a Gaussian blur?",
+        note: "It averages each pixel with its neighbors so the image goes soft. Designers use it for the frosted-glass look, like the background behind your phone's Control Center, so text stays readable on top of a busy picture.",
+        ask: "Where have you seen a blurred background behind text?" },
+      { value: 500, clue: "What CSS function restricts a value to a fluid range between a minimum and a maximum, so fonts, padding and widths scale responsively with the viewport?",
+        answer: "What is clamp()?",
+        note: "clamp(min, preferred, max). Text grows with the screen but never gets too tiny on a phone or huge on a TV. One line of CSS instead of a pile of breakpoints.",
+        ask: "Why is giant text on a big monitor a problem?" }
+    ]},
+    { name: "Ctrl+Z", clues: [
+      { value: 100, clue: "In a famous 1980s study, some of the smartest computer scientists were filmed trying and failing to make double-sided copies on this machine, which was made by their own company.",
+        answer: "What is a Xerox copier?",
+        note: "Lucy Suchman filmed Xerox researchers trying to make double-sided copies on their own company's copier, and they kept failing. If the people who build the machines can't use them, the machine is the problem, not the people.",
+        ask: "When have you blamed yourself for a confusing machine?" },
+      { value: 200, clue: "This three-letter acronym names the point-and-click world of windows, icons and menus that replaced typing commands into a code-based command line.",
+        answer: "What is a GUI (graphical user interface)?",
+        note: "Before GUIs you typed commands to do anything. Xerox built windows, icons and a mouse in the 1970s, and the Mac brought it to everyone in 1984. Suddenly you didn't need to know code to use a computer.",
+        ask: "What's still faster to do by typing?" },
+      { value: 300, clue: "This cognitive scientist is credited with coining the term \"user experience\" in 1993, when he took the title \"User Experience Architect\" at Apple.",
+        answer: "Who is Don Norman?",
+        note: "He wanted a word for the whole experience of using something, not just the screen, so he took the job title \"User Experience Architect\" at Apple. He also wrote The Design of Everyday Things. A \"Norman door\" is one that says pull when you need to push.",
+        ask: "Name a Norman door you've fought with." },
+      { value: 400, clue: "This 1954 law says the time it takes to click a target depends on how big it is and how far away it is. It's why big buttons and screen corners are easy to hit.",
+        answer: "What is Fitts's Law?",
+        note: "Bigger and closer means faster to hit. Screen corners are easy because your mouse can't overshoot them. That's why the Start button lives in the corner and \"Buy now\" buttons are huge.",
+        ask: "Find a button on your phone that's too small." },
+      { value: 500, clue: "Most apps still use this outdated storage device as the icon for \"Save,\" even though many users have never touched one.",
+        answer: "What is a floppy disk?",
+        note: "Most of you have never held one, but you know it means save. Icons outlive the stuff they're based on. The phone handset for calls and the envelope for email are the same deal.",
+        ask: "What would you replace the save icon with?" }
+    ]},
+    { name: "Sticky Notes", clues: [
+      { value: 100, clue: "This design thinking stage starts by learning about the people who have the problem.",
+        answer: "What is empathize?",
+        note: "Step one of design thinking. Before you build anything, go talk to and watch the people who actually have the problem. The paper we read says user research is still the foundation of good design.",
+        ask: "How would you empathize with students before redesigning the school website?" },
+      { value: 200, clue: "This stage uses feedback from users to revise a model of the solution, often repeating earlier design thinking stages.",
+        answer: "What is test?",
+        note: "Put the prototype in front of real people and watch. It almost always sends you back a step or two, and that's normal. Better to find out now than after launch.",
+        ask: "Why is it better to fail in testing?" },
+      { value: 300, clue: "This company helped popularize design thinking in businesses around the world.",
+        answer: "What is IDEO?",
+        note: "A design firm that brought design thinking to big companies, schools and governments. They designed Apple's first mouse, and on TV in 1999 they redesigned a shopping cart in five days.",
+        ask: "What would you redesign in five days?" },
+      { value: 400, clue: "This author of \"The Sciences of the Artificial\" is often considered an early founder of design thinking.",
+        answer: "Who is Herbert A. Simon?",
+        note: "In 1969 he wrote that design is about changing existing situations into preferred ones. That covers a lot more than making things look nice: a bus schedule counts, and so does an app.",
+        ask: "What's one situation at school you'd change?" },
+      { value: 500, clue: "In this design thinking stage, teams build quick, cheap, rough versions of an idea so they can learn from them.",
+        answer: "What is prototype?",
+        note: "Build a cheap, rough version so you can learn from it. Paper sketches count. If you're scared to throw it away, you spent too long on it. AI tools like Uizard can now turn a sketch into screens fast.",
+        ask: "What's the fastest way you could prototype an app idea?" }
+    ]},
+    { name: "Prompt me", clues: [
+      { value: 100, clue: "This AI feature helps designers generate ideas, images or text during the design process.",
+        answer: "What is generative AI (Gen AI)?",
+        note: "AI that makes new stuff from a prompt: text, images, code, layouts. Designers use it to brainstorm and to skip boring tasks like resizing. The paper names tools like Uizard, Galileo AI and UX Pilot. You still have to check what it makes.",
+        ask: "What should you always double-check in AI-made work?" },
+      { value: 200, clue: "This popular AI term describes building through prompts rather than traditional programming.",
+        answer: "What is vibe coding?",
+        note: "Andrej Karpathy named it in 2025. You describe the app you want, the AI writes the code, and you keep tweaking until it works. Great for quick prototypes. Someone still needs to make sure it's correct and safe.",
+        ask: "If anyone can build an app, what makes a designer stand out?" },
+      { value: 300, clue: "This platform lets designers and developers find, share and use tools and resources made by others, and hosts millions of open source projects.",
+        answer: "What is GitHub?",
+        note: "Where people store code, track changes and share projects. Designers grab icon sets, UI kits and plugins there, like the free Lucide icons. The paper also tells students to get involved in online design communities.",
+        ask: "Why would a company give away its design tools?" },
+      { value: 400, clue: "This type of AI uses past behavior and data to anticipate a user's next move.",
+        answer: "What is predictive AI?",
+        note: "It looks at what you've done before to guess what you'll do next. Your phone suggesting the app you always open at 8am, or autocomplete finishing your sentence. It should be easy to ignore when it guesses wrong.",
+        ask: "When has a prediction helped you, and when was it annoying?" },
+      { value: 500, clue: "This term describes AI-generated users used to test ideas or simulate research.",
+        answer: "What are synthetic users?",
+        note: "AI personas you can \"interview\" about a design. They're fast and cheap for early ideas. But they only know what's in their training data, bias included, so they can't replace talking to real people.",
+        ask: "What could a real user tell you that a fake one couldn't?" }
+    ]},
+    { name: "Feelin' Haptic", clues: [
+      { value: 100, clue: "This kind of feedback communicates with users through touch, like your phone vibrating when a message arrives.",
+        answer: "What is haptic feedback?",
+        note: "Feedback you feel. The little tap when you flip a switch on an iPhone, or your watch buzzing to tell you to turn left. You know it worked without looking.",
+        ask: "Which phone buzz do you recognize without looking?" },
+      { value: 200, clue: "Starting in 2026, Euro NCAP car safety ratings reward cars that bring back these for basics like hazard lights and wipers, instead of burying them in touchscreens.",
+        answer: "What are physical buttons (physical controls)?",
+        note: "Touchscreens make drivers look away from the road to find the wipers. A knob you can find by feel is safer. Euro NCAP's 2026 ratings reward cars that bring basic buttons back. Newer isn't always better.",
+        ask: "Where else would a real button beat a touchscreen?" },
+      { value: 300, clue: "This design term, made famous by Don Norman, describes how an object's shape suggests how to use it, like a handle that invites you to pull.",
+        answer: "What is an affordance?",
+        note: "What an object lets you do, and how its shape hints at it. A handle says pull, a flat plate says push. On screens, a button that looks raised says tap me. Don Norman made the term famous.",
+        ask: "Find something in this room whose shape tells you how to use it." },
+      { value: 400, clue: "This Nintendo Switch feature, named for its precise vibrations, can make it feel like there are ice cubes shaking in a glass.",
+        answer: "What is HD Rumble?",
+        note: "Nintendo's very precise vibration in the Switch controllers. In one demo it feels like ice cubes rattling in a glass. PlayStation's DualSense does it too, and its triggers even push back when you pull a bow.",
+        ask: "How could detailed vibration help someone who can't see the screen?" },
+      { value: 500, clue: "Computer scientist Mark Weiser made this term famous in 1991 for computers that fade into everyday objects and environments.",
+        answer: "What is ubiquitous computing?",
+        note: "Mark Weiser's idea that computers would blend into everyday stuff until we stop noticing them. Smart thermostats, watches, doorbells. The paper's section on the Internet of Things is basically this idea today.",
+        ask: "Which computer in your life do you forget is a computer?" }
+    ]}
+  ],
+  final: {
+    category: "Usability",
+    clue: "Usability is often measured with these three qualities, abbreviated EES: can people finish the task, how much effort does it take, and how do they feel about it?",
+    answer: "What are effectiveness, efficiency and satisfaction?",
+    note: "It's how usability gets measured. Can people finish the task? How much time and effort does it take? Do they feel good about it? The paper calls this \"usability over UI\": a pretty app that fails any of these isn't good UX.",
+    ask: "Pick an app you use every day. Score it 1 to 5 on all three."
+  }
+};
+
+/* ===================== GAME LOGIC ===================== */
+const STORE_KEY = "ux-jeopardy-v2";
+const TEAM_COUNT = 3;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const money = n => (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString();
+
+/* ---------- Sound: original thinking music and effects, made with Web Audio ---------- */
+const Sound = (() => {
+  let ctx = null, music = null, timer = null, tick = null;
+  let on = true;
+  try { on = localStorage.getItem("ux-jeopardy-sound") !== "off"; } catch (e) {}
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  function audio() {
+    if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; ctx = new AC(); }
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+  function note(out, midi, start, dur, type = "triangle", vol = .18) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = hz(midi);
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(vol, start + .01);
+    g.gain.exponentialRampToValueAtTime(.001, start + dur);
+    o.connect(g).connect(out); o.start(start); o.stop(start + dur + .05);
+  }
+  function play(seq, type, vol) {           // seq: [[midi, startOffset, duration], ...]
+    if (!on || !audio()) return;
+    const t = ctx.currentTime + .02;
+    seq.forEach(([m, s, d]) => note(ctx.destination, m, t + s, d, type, vol));
+  }
+  // An original 4-bar tune in C (C, Dm, Am, G), eighth notes at 120 bpm.
+  const MELODY = [72,0,76,0,79,77,76,0, 74,0,77,0,76,74,72,0, 69,0,72,0,76,74,72,0, 71,0,74,0,79,0,0,0];
+  const BASS = [48,55,48,55, 50,57,50,57, 45,52,45,52, 43,50,43,50];
+  function stopMusic() {
+    clearTimeout(timer); clearInterval(tick); timer = tick = null;
+    if (music) { const g = music; g.gain.setTargetAtTime(0, ctx.currentTime, .05); setTimeout(() => g.disconnect(), 300); music = null; }
+  }
+  function startMusic(seconds, onTick, onEnd) {
+    stopMusic();
+    const end = Date.now() + seconds * 1000;
+    onTick(seconds);
+    tick = setInterval(() => onTick(Math.max(0, Math.ceil((end - Date.now()) / 1000))), 250);
+    timer = setTimeout(() => { stopMusic(); onTick(0); timesUp(); onEnd && onEnd(); }, seconds * 1000);
+    if (!on || !audio()) return;
+    music = ctx.createGain(); music.gain.value = 1; music.connect(ctx.destination);
+    const t0 = ctx.currentTime + .05, e = .25;
+    for (let i = 0; i < seconds / e; i++) {
+      const t = t0 + i * e, m = MELODY[i % MELODY.length];
+      if (m) note(music, m, t, e * 1.6, "triangle", .14);
+      if (i % 2 === 0) note(music, BASS[(i / 2) % BASS.length], t, e * 1.8, "sine", .22);
+      if (i % 2 === 0) note(music, 96, t, .03, "square", .025);   // clock tick
+    }
+  }
+  const right = () => play([[76, 0, .15], [84, .12, .35]], "triangle", .2);
+  const wrong = () => play([[43, 0, .45], [42, 0, .45]], "sawtooth", .08);
+  const timesUp = () => play([[48, 0, .7], [47, 0, .7]], "square", .07);
+  const dailyDouble = () => play([60, 64, 67, 72, 76, 79, 84].map((m, i) => [m, i * .07, .5]), "triangle", .14);
+  const prime = () => { if (on) audio(); };
+  function toggle() {
+    on = !on;
+    try { localStorage.setItem("ux-jeopardy-sound", on ? "on" : "off"); } catch (e) {}
+    if (!on && music) { music.disconnect(); music = null; }
+    return on;
+  }
+  return { startMusic, stopMusic, right, wrong, dailyDouble, toggle, prime, get on() { return on; } };
+})();
+
+function runTimer(seconds) {
+  const box = $("#timer"); if (!box) return;
+  box.hidden = false; box.classList.remove("done");
+  Sound.startMusic(seconds,
+    n => { const l = box.querySelector(".left"); if (l) l.textContent = n ? n + "s" : "Time's up"; },
+    () => box.classList.add("done"));
+}
+const timerHtml = `<div class="timer" id="timer" hidden><div class="track"><div class="fill"></div></div><div class="left">30s</div></div>`;
+
+let state = null;   // { teams, turn, used, dd, finalDone }
+let view = null;    // what the overlay is showing
+
+function newState(names) {
+  const cells = [];
+  GAME.categories.forEach((c, ci) => c.clues.forEach((_, ri) => { if (ri >= 2) cells.push(ci + "-" + ri); }));
+  return {
+    teams: names.map(name => ({ name, score: 0 })),
+    turn: 0,
+    used: {},                 // "col-row" -> "known" | "taught"
+    dd: cells[Math.floor(Math.random() * cells.length)],
+    finalDone: null           // null | "known" | "taught"
+  };
+}
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+function loadSaved() {
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.teams && s.teams.length === TEAM_COUNT) return s; } catch (e) {}
+  return null;
+}
+const teamUp = () => state.teams[state.turn];
+const nextTurn = () => { state.turn = (state.turn + 1) % TEAM_COUNT; };
+const clueById = id => { const [c, r] = id.split("-").map(Number); return { cat: GAME.categories[c], clue: GAME.categories[c].clues[r] }; };
+
+/* ---------- Screens ---------- */
+function showSetup() {
+  view = null; drawOverlay();
+  $("#game").hidden = true; $("#setup").hidden = false;
+  const saved = loadSaved();
+  $("#resume").hidden = !saved;
+  for (let i = 0; i < TEAM_COUNT; i++) $("#name-" + i).value = saved ? saved.teams[i].name : "";
+  $("#name-0").focus();
+}
+function showGame() {
+  $("#setup").hidden = true; $("#game").hidden = false;
+  $("#btnSound").textContent = Sound.on ? "Sound on" : "Sound off"; $("#btnSound").setAttribute("aria-pressed", Sound.on);
+  render();
+}
+
+function render() {
+  const b = $("#board");
+  let h = GAME.categories.map(c => `<div class="cat">${esc(c.name)}</div>`).join("");
+  for (let r = 0; r < 5; r++) GAME.categories.forEach((c, ci) => {
+    const id = ci + "-" + r, clue = c.clues[r], used = state.used[id];
+    const label = used ? `${c.name}, $${clue.value}, played. Open to review the lesson.` : `${c.name} for $${clue.value}`;
+    h += `<button type="button" class="tile${used ? " used" : ""}" data-id="${id}" aria-label="${esc(label)}">$${clue.value.toLocaleString()}</button>`;
+  });
+  b.innerHTML = h;
+
+  const left = GAME.categories.length * 5 - Object.keys(state.used).length;
+  $("#turnLine").innerHTML = left ? `<b>${esc(teamUp().name)}</b>, pick a clue` : `Board cleared. Time for <b>Final Jeopardy</b>`;
+  if (view && view.kind === "scores") drawScores();
+
+  const missed = Object.values(state.used).filter(v => v === "taught").length + (state.finalDone === "taught" ? 1 : 0);
+  $("#missCount").textContent = missed; $("#missCount").dataset.n = missed;
+  save();
+}
+
+/* ---------- Clue overlay ---------- */
+function lessonCard(item, tag) {
+  return `<article class="lesson">
+    <span class="tag">${esc(tag)}</span>
+    <h2>${esc(item.answer.replace(/^(What|Who) (is|are) /, "").replace(/\?$/, ""))}</h2>
+    <p>${esc(item.note)}</p>
+    <p class="discuss">${esc(item.ask)}</p>
+  </article>`;
+}
+
+function openClue(id) {
+  if (state.used[id]) { view = { id, step: "review" }; return drawOverlay(); }
+  if (id === state.dd) {
+    view = { id, step: "dd", team: state.turn, out: [], wager: null };
+    drawOverlay(); return Sound.dailyDouble();
+  }
+  // The team that's up answers first. If they miss, another team can steal.
+  view = { id, step: "clue", team: state.turn, out: [], wager: null };
+  drawOverlay(); runTimer(30);
+}
+const allTeams = () => state.teams.map((_, i) => i);
+const remaining = () => allTeams().filter(i => !view.out.includes(i));
+let selecting = false;
+function selectTile(el) {
+  const id = el.dataset.id;
+  if (selecting) return;
+  if (state.used[id]) return openClue(id);
+  selecting = true;
+  el.classList.add("selected");
+  el.textContent = id === state.dd ? "Daily Double" : clueById(id).clue.clue;
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  setTimeout(() => { selecting = false; openClue(id); }, reduce ? 150 : 900);
+  Sound.prime();
+}
+function toggleMenu(force) {
+  const list = $("#menuList"), open = force ?? list.hidden;
+  list.hidden = !open; $("#menu").classList.toggle("open", open); $("#menuBtn").setAttribute("aria-expanded", open);
+}
+document.addEventListener("fullscreenchange", () => { $("#btnFull").textContent = document.fullscreenElement ? "Exit full screen" : "Full screen"; });
+document.addEventListener("pointerdown", e => { if (!e.target.closest("#menu") && !$("#menuList").hidden) toggleMenu(false); });
+
+function finishClue(result) { state.used[view.id] = result; nextTurn(); render(); }
+
+function drawOverlay() {
+  Sound.stopMusic();
+  const ov = $("#overlay");
+  if (!view) { ov.hidden = true; ov.innerHTML = ""; return; }
+  if (view.kind === "list") return drawList();
+  if (view.kind === "scores") return drawScores();
+  if (view.kind === "final") return drawFinal();
+
+  const { cat, clue } = clueById(view.id);
+  const team = state.teams[view.team];
+  const amount = view.wager ?? clue.value;
+  const nameOf = i => esc(state.teams[i].name);
+  const missed = view.out && view.out.length ? `<p class="hint out">Missed: ${view.out.map(nameOf).join(", ")}</p>` : "";
+  let body = "";
+
+  switch (view.step) {
+    case "dd": {
+      const max = Math.max(team.score, 500);
+      body = `<div class="big-word">Daily Double</div>
+        <p class="status">${esc(team.name)} plays this one alone.</p>
+        <div class="inline"><div class="field"><label for="ddWager">Wager, $5 to $${max.toLocaleString()}</label>
+          <input id="ddWager" type="number" inputmode="numeric" min="5" max="${max}" step="100" placeholder="${clue.value}"></div></div>
+        <div class="actions"><button class="btn primary big" id="ddGo" type="button">Show the clue</button></div>`;
+      break;
+    }
+    case "clue": {
+      let who, buttons = "";
+      if (view.team != null) {
+        who = `<p class="who">${nameOf(view.team)} answering</p>`;
+        buttons = `<button class="btn right big" data-judge="right" type="button">Correct, +$${amount.toLocaleString()}</button>
+          <button class="btn wrong big" data-judge="wrong" type="button">Wrong${view.wager != null ? ", -$" + amount.toLocaleString() : ""}</button>`;
+      } else {
+        who = `<p class="who">Who wants to steal it?</p>`;
+        buttons = remaining().map(i => `<button class="btn big" data-pick="${i}" type="button">${nameOf(i)}</button>`).join("");
+      }
+      body = `${who}
+        <p class="clue">${esc(clue.clue)}</p>
+        ${missed}
+        ${view.out.length ? "" : timerHtml}
+        <div class="actions">${buttons}<button class="btn big" id="reveal" type="button">Show answer</button></div>`;
+      break;
+    }
+    case "answer": {
+      const can = view.wager != null ? [view.team] : remaining();
+      body = `<p class="clue small">${esc(clue.clue)}</p>
+        <p class="answer">${esc(clue.answer)}</p>
+        ${missed}
+        <p class="who">Who got it?</p>
+        <div class="actions">
+          ${can.map(i => `<button class="btn right big" data-award="${i}" type="button">${nameOf(i)} got it</button>`).join("")}
+          <button class="btn wrong big" id="nobody" type="button">Nobody got it</button>
+        </div>`;
+      break;
+    }
+    case "known":
+      body = `<p class="status known">${nameOf(view.winner)} got it. The class knows this one, so skip the lesson.</p>
+        <p class="answer">${esc(clue.answer)}</p>
+        <div class="actions"><button class="btn primary big" data-close type="button">Back to board</button>
+          <button class="btn big" id="teachAnyway" type="button">Show the lesson anyway</button></div>`;
+      break;
+    case "teach":
+    case "review":
+      body = `${view.step === "teach" ? `<p class="status taught">Nobody got it. Teach this one.</p>` : ""}
+        ${lessonCard(clue, cat.name + ", $" + clue.value)}
+        <div class="actions"><button class="btn primary big" data-close type="button">Back to board</button></div>`;
+      break;
+  }
+
+  const val = view.wager != null ? "Daily Double, " + money(amount) : money(clue.value);
+  ov.innerHTML = `<div class="ov-head"><span>${esc(cat.name)}</span><span class="val">${val}</span>
+    <button class="btn" data-close type="button">Close</button></div>
+    <div class="ov-body">${body}</div>`;
+  ov.hidden = false;
+  (ov.querySelector(".ov-body input, .ov-body .btn.primary, .ov-body .btn") || ov).focus({ preventScroll: true });
+}
+
+/* ---------- Scores ---------- */
+function drawScores() {
+  const ov = $("#overlay");
+  ov.innerHTML = `<div class="ov-head"><span>Scores</span><button class="btn" data-close type="button">Close</button></div>
+    <div class="ov-body"><div class="scoreboard">${state.teams.map((t, i) => `
+      <div class="score-card${i === state.turn ? " up" : ""}">
+        <div class="name">${esc(t.name)}</div>
+        <div class="score${t.score < 0 ? " neg" : ""}">${money(t.score)}</div>
+        <div class="adj"><button type="button" data-adj="-100" data-i="${i}" aria-label="Take 100 from ${esc(t.name)}">-100</button><button type="button" data-adj="100" data-i="${i}" aria-label="Give 100 to ${esc(t.name)}">+100</button></div>
+      </div>`).join("")}</div>
+      <p class="hint">Use -100 and +100 to fix a score.</p></div>`;
+  ov.hidden = false;
+  ov.querySelector("[data-close]").focus({ preventScroll: true });
+}
+
+/* ---------- Teaching list ---------- */
+function drawList() {
+  Sound.stopMusic();
+  const items = [];
+  GAME.categories.forEach((c, ci) => c.clues.forEach((cl, ri) => {
+    if (state.used[ci + "-" + ri] === "taught") items.push(lessonCard(cl, c.name + ", $" + cl.value));
+  }));
+  if (state.finalDone === "taught") items.push(lessonCard(GAME.final, "Final Jeopardy, " + GAME.final.category));
+  const total = GAME.categories.length * 5, vals = Object.values(state.used);
+  const known = vals.filter(v => v === "known").length, taught = vals.filter(v => v === "taught").length;
+  const ov = $("#overlay");
+  ov.innerHTML = `<div class="ov-head"><span>Topics to teach</span><button class="btn" data-close type="button">Close</button></div>
+    <div class="ov-body" style="justify-content:flex-start">
+      <div class="stats">
+        <div class="stat k"><b>${known}</b><span>Class knew</span></div>
+        <div class="stat t"><b>${taught}</b><span>Need teaching</span></div>
+        <div class="stat"><b>${total - vals.length}</b><span>Not played</span></div>
+      </div>
+      <div class="list">${items.length ? items.join("") : `<p class="hint">Nothing yet. Any clue nobody answers shows up here with its lesson.</p>`}</div>
+    </div>`;
+  ov.hidden = false;
+  ov.querySelector("[data-close]").focus({ preventScroll: true });
+}
+
+/* ---------- Final Jeopardy ---------- */
+function drawFinal() {
+  Sound.stopMusic();
+  const F = GAME.final, ov = $("#overlay");
+  let body = "";
+  if (view.step === "wager") {
+    body = `<div class="big-word">Final Jeopardy</div>
+      <p class="clue small">Category: ${esc(F.category)}</p>
+      <p class="hint">Each team writes down a secret wager, from $0 up to its score.</p>
+      <div class="inline">${state.teams.map((t, i) => `<div class="field"><label for="fw-${i}">${esc(t.name)}, max ${money(Math.max(t.score, 0))}</label>
+        <input id="fw-${i}" type="number" inputmode="numeric" min="0" max="${Math.max(t.score, 0)}" step="100" placeholder="0"></div>`).join("")}</div>
+      <div class="actions"><button class="btn primary big" id="finalClue" type="button">Show the clue</button></div>`;
+  } else if (view.step === "clue") {
+    body = `<p class="clue">${esc(F.clue)}</p>
+      ${timerHtml}
+      <div class="actions"><button class="btn primary big" id="finalReveal" type="button">Reveal answer</button></div>`;
+  } else if (view.step === "answer") {
+    const done = state.teams.every((_, i) => view.judged[i]);
+    body = `<p class="answer">${esc(F.answer)}</p>
+      <div class="list" style="max-width:640px">${state.teams.map((t, i) => {
+        const j = view.judged[i], w = view.wagers[i];
+        return `<div class="inline" style="align-items:center;justify-content:space-between;max-width:none">
+          <span class="status">${esc(t.name)}, bet ${money(w)}${j ? (j === "ok" ? ": correct" : ": wrong") : ""}</span>
+          <span class="actions"><button class="btn right" data-fjudge="ok" data-i="${i}" type="button" ${j ? "disabled" : ""}>Correct</button>
+          <button class="btn wrong" data-fjudge="no" data-i="${i}" type="button" ${j ? "disabled" : ""}>Wrong</button></span></div>`;
+      }).join("")}</div>
+      <div class="actions"><button class="btn primary big" id="finalDone" type="button" ${done ? "" : "disabled"}>See results</button></div>`;
+  } else {
+    const ranked = [...state.teams].sort((a, b) => b.score - a.score);
+    const winners = ranked.filter(t => t.score === ranked[0].score).map(t => t.name);
+    body = `<div class="big-word" style="font-size:clamp(36px,6vw,72px)">${esc(winners.join(" and "))} ${winners.length > 1 ? "tie" : "wins"}</div>
+      <div class="stats">${ranked.map(t => `<div class="stat"><b>${money(t.score)}</b><span>${esc(t.name)}</span></div>`).join("")}</div>
+      ${state.finalDone === "known" ? `<p class="status known">Someone got Final Jeopardy, so no lesson is needed.</p>` : lessonCard(F, "Final Jeopardy, " + F.category)}
+      <div class="actions"><button class="btn primary big" id="openList" type="button">See all topics to teach</button></div>`;
+  }
+  ov.innerHTML = `<div class="ov-head"><span>Final Jeopardy: ${esc(F.category)}</span><button class="btn" data-close type="button">Close</button></div>
+    <div class="ov-body">${body}</div>`;
+  ov.hidden = false;
+  (ov.querySelector(".ov-body input, .ov-body .btn.primary:not(:disabled), .ov-body .btn:not(:disabled)") || ov).focus({ preventScroll: true });
+}
+
+/* ---------- Events ---------- */
+$("#setupForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const names = [0, 1, 2].map(i => $("#name-" + i).value.trim() || "Team " + (i + 1));
+  state = newState(names); showGame();
+});
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  if (t.id === "resume") { state = loadSaved(); return showGame(); }
+  if (t.id === "menuBtn") return toggleMenu();
+  if (t.closest("#menuList") && t.id !== "btnReset" && t.id !== "btnSound") toggleMenu(false);
+  if (t.classList.contains("tile")) return selectTile(t);
+  if (t.dataset.adj) { state.teams[t.dataset.i].score += Number(t.dataset.adj); return render(); }
+  if (t.hasAttribute("data-close")) {
+    // A team already missed: closing now counts as "nobody got it".
+    if (view && !view.kind && (view.step === "clue" || view.step === "answer") && view.out.length) finishClue("taught");
+    view = null; return drawOverlay();
+  }
+  if (t.id === "btnScores") { view = { kind: "scores" }; return drawScores(); }
+  if (t.id === "btnList" || t.id === "openList") { view = { kind: "list" }; return drawList(); }
+  if (t.id === "btnFinal") { view = { kind: "final", step: state.finalDone ? "done" : "wager", wagers: [], judged: {} }; return drawFinal(); }
+  if (t.id === "btnReset") {
+    if (t.dataset.armed) { toggleMenu(false); return showSetup(); }
+    t.dataset.armed = "1"; t.textContent = "Click again to end this game";
+    setTimeout(() => { delete t.dataset.armed; t.textContent = "New game"; }, 3500);
+    return;
+  }
+
+  // Clue flow
+  if (t.id === "ddGo") {
+    const max = Math.max(state.teams[view.team].score, 500);
+    const w = Number($("#ddWager").value) || clueById(view.id).clue.value;
+    view.wager = Math.min(Math.max(5, Math.round(w)), max);
+    view.step = "clue"; drawOverlay(); return runTimer(30);
+  }
+  if (t.id === "btnFull") {
+    const el = document.documentElement;
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else el.requestFullscreen?.().catch(() => {});
+    return;
+  }
+  if (t.id === "btnSound") { const on = Sound.toggle(); t.textContent = on ? "Sound on" : "Sound off"; t.setAttribute("aria-pressed", on); return; }
+  if (t.id === "reveal") { view.step = "answer"; return drawOverlay(); }
+  if (t.dataset.pick) { view.team = Number(t.dataset.pick); return drawOverlay(); }
+  if (t.dataset.judge) {
+    const amount = view.wager ?? clueById(view.id).clue.value;
+    if (t.dataset.judge === "right") {
+      Sound.right(); state.teams[view.team].score += amount; view.winner = view.team;
+      finishClue("known"); view.step = "known"; return drawOverlay();
+    }
+    Sound.wrong();
+    if (view.wager != null) {                      // Daily Double: the wager is lost
+      state.teams[view.team].score -= amount;
+      finishClue("taught"); view.step = "teach"; return drawOverlay();
+    }
+    view.out.push(view.team); view.team = null;
+    if (!remaining().length) { finishClue("taught"); view.step = "teach"; return drawOverlay(); }
+    return drawOverlay();
+  }
+  if (t.dataset.award) {
+    const i = Number(t.dataset.award), amount = view.wager ?? clueById(view.id).clue.value;
+    Sound.right(); state.teams[i].score += amount; view.winner = i;
+    finishClue("known"); view.step = "known"; return drawOverlay();
+  }
+  if (t.id === "nobody") {
+    Sound.wrong();
+    if (view.wager != null) state.teams[view.team].score -= view.wager;
+    finishClue("taught"); view.step = "teach"; return drawOverlay();
+  }
+  if (t.id === "teachAnyway") { view.step = "review"; return drawOverlay(); }
+
+  // Final flow
+  if (t.id === "finalClue") {
+    state.teams.forEach((tm, i) => { view.wagers[i] = Math.min(Math.max(0, Number($("#fw-" + i).value) || 0), Math.max(tm.score, 0)); });
+    view.step = "clue"; drawFinal(); return runTimer(30);
+  }
+  if (t.id === "finalReveal") { view.step = "answer"; return drawFinal(); }
+  if (t.dataset.fjudge) {
+    const i = Number(t.dataset.i), w = view.wagers[i];
+    view.judged[i] = t.dataset.fjudge;
+    t.dataset.fjudge === "ok" ? Sound.right() : Sound.wrong();
+    state.teams[i].score += t.dataset.fjudge === "ok" ? w : -w;
+    render(); return drawFinal();
+  }
+  if (t.id === "finalDone") {
+    state.finalDone = Object.values(view.judged).includes("ok") ? "known" : "taught";
+    render(); view.step = "done"; return drawFinal();
+  }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("#menuList").hidden) return toggleMenu(false);
+  if (e.key === "Escape" && view) document.querySelector("#overlay [data-close]")?.click();
+});
+
+/* ---------- Boot ---------- */
+function start(data) {
+  if (data && data.state) { state = data.state; view = data.view || null; showGame(); drawOverlay(); }
+  else showSetup();
+}
+window.claude?.hot?.snapshot?.(() => state ? { state, view } : {});
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
