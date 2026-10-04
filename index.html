@@ -61,6 +61,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .btn.primary { background: var(--gold); color: #000; }
 .btn.big { padding: 12px 22px; font-size: 20px; }
 .btn.right { background: #0d6b45; }
+.btn kbd { display: inline-block; min-width: 1.4em; margin-right: 6px; padding: 0 4px; border: 1px solid rgba(255, 255, 255, .5); font: inherit; font-size: .8em; }
 .btn.wrong { background: #8a1f2b; }
 .title { margin: 0; font: 400 clamp(36px, 6vw, 72px)/1 var(--font-board); text-transform: uppercase; letter-spacing: .03em; text-shadow: 4px 4px 0 #000; }
 
@@ -410,16 +411,16 @@ const GAME = {
       "After every clue, the next player on each team comes up. Everyone plays.",
       "Teammates stay quiet while a clue is live."
     ]},
-    { title: "Picking and answering", points: [
-      "Teams take turns picking a category and a dollar amount.",
-      "The player from the team that picked answers first. You have 30 seconds.",
+    { title: "Buzzing in", points: [
+      "The first team on the list picks first. After that, whoever gets a clue right picks the next one.",
+      "Wait until the whole clue is read, then hit your buzzer. First buzz answers.",
       "Answer in the form of a question: \"What is...?\" or \"Who is...?\"",
       "Get it right and your team earns the money."
     ]},
-    { title: "Steals", points: [
-      "Miss it, and the players from the other teams can steal.",
+    { title: "Wrong answers", points: [
+      "Miss it, and the other players can buzz in.",
       "A wrong answer doesn't cost you anything, except on a Daily Double.",
-      "If nobody gets it, we stop and teach that topic."
+      "If nobody gets it, we stop and teach that topic, and the same team picks again."
     ]},
     { title: "Daily Double and Final", points: [
       "One clue on the board is a Daily Double. The player up bets $5 up to their team's score (or $500), and answers alone.",
@@ -759,7 +760,8 @@ function loadSaved() {
 }
 const teamUp = () => state.teams[state.turn];
 const playerUp = i => state.teams[i].players[state.rot % TEAM_SIZE];
-const nextTurn = () => { state.turn = (state.turn + 1) % TEAM_COUNT; state.rot = (state.rot + 1) % TEAM_SIZE; };
+// Whoever gets a clue right picks next, like the show. If nobody does, the same team picks again.
+const nextTurn = winner => { if (winner != null) state.turn = winner; state.rot = (state.rot + 1) % TEAM_SIZE; };
 const clueById = id => { const [c, r] = id.split("-").map(Number); return { cat: GAME.categories[c], clue: GAME.categories[c].clues[r] }; };
 
 /* ---------- Screens ---------- */
@@ -835,7 +837,8 @@ function openClue(id) {
     drawOverlay(); return Sound.dailyDouble();
   }
   // The team that's up answers first. If they miss, another team can steal.
-  view = { id, step: "clue", team: state.turn, out: [], wager: null };
+  // Nobody is answering yet: the first player to hit their buzzer gets it.
+  view = { id, step: "clue", team: null, out: [], wager: null };
   drawOverlay(); runTimer(30);
 }
 const allTeams = () => state.teams.map((_, i) => i);
@@ -874,7 +877,7 @@ function toggleMenu(force) {
 document.addEventListener("fullscreenchange", () => setLabel("#btnFull", document.fullscreenElement ? "Exit full screen" : "Full screen"));
 document.addEventListener("pointerdown", e => { if (!e.target.closest("#menu") && !$("#menuList").hidden) toggleMenu(false); });
 
-function finishClue(result) { state.used[view.id] = result; nextTurn(); render(); }
+function finishClue(result, winner) { state.used[view.id] = result; nextTurn(winner); render(); }
 
 function drawOverlay() {
   Sound.stopMusic();
@@ -910,8 +913,8 @@ function drawOverlay() {
         buttons = `<button class="btn right big" data-judge="right" type="button">Correct, +$${amount.toLocaleString()}</button>
           <button class="btn wrong big" data-judge="wrong" type="button">Wrong${view.wager != null ? ", -$" + amount.toLocaleString() : ""}</button>`;
       } else {
-        who = `<p class="who">Who wants to steal it?</p>`;
-        buttons = remaining().map(i => `<button class="btn big" data-pick="${i}" type="button">${esc(playerUp(i))} (${nameOf(i)})</button>`).join("");
+        who = `<p class="who">${view.out.length ? "Who buzzed in next?" : "Who buzzed in first?"}</p>`;
+        buttons = remaining().map(i => `<button class="btn big" data-pick="${i}" type="button"><kbd>${i + 1}</kbd> ${esc(playerUp(i))} (${nameOf(i)})</button>`).join("");
       }
       body = `${who}
         <p class="clue">${esc(clue.clue)}</p>
@@ -1175,7 +1178,7 @@ document.addEventListener("click", e => {
     const amount = view.wager ?? clueById(view.id).clue.value;
     if (t.dataset.judge === "right") {
       Sound.right(); state.teams[view.team].score += amount; win(view.team);
-      finishClue("known"); view.step = "known"; return drawOverlay();
+      finishClue("known", view.team); view.step = "known"; return drawOverlay();
     }
     Sound.wrong();
     if (view.wager != null) {                      // Daily Double: the wager is lost
@@ -1189,7 +1192,7 @@ document.addEventListener("click", e => {
   if (t.dataset.award) {
     const i = Number(t.dataset.award), amount = view.wager ?? clueById(view.id).clue.value;
     Sound.right(); state.teams[i].score += amount; win(i);
-    finishClue("known"); view.step = "known"; return drawOverlay();
+    finishClue("known", i); view.step = "known"; return drawOverlay();
   }
   if (t.id === "nobody") {
     Sound.wrong();
@@ -1221,6 +1224,10 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && !$("#menuList").hidden) return toggleMenu(false);
   if (e.key === "Escape" && view) return document.querySelector("#overlay [data-close]")?.click();
   if (e.target.closest("input")) return;
+  // Buzzers: press 1, 2 or 3 for the team whose player buzzed in.
+  if (view && !view.kind && view.step === "clue" && view.team == null && /^[1-9]$/.test(e.key)) {
+    return document.querySelector(`#overlay [data-pick="${Number(e.key) - 1}"]`)?.click();
+  }
   // Slide clickers send PageDown / PageUp; arrow keys work too.
   if (view && view.kind === "deck") {
     if (["ArrowRight", "PageDown"].includes(e.key)) { e.preventDefault(); return deckStep(1); }
