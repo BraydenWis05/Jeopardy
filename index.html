@@ -165,7 +165,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   box-shadow: 0 0 0 2px #e6eeff, 0 0 26px 6px rgba(140, 180, 255, .85);
 }
 /* While the clue card grows out of its square, only the clue rides along. */
-.overlay.zooming { animation: none; transform-origin: 0 0; }
+.overlay.zooming { transform-origin: 0 0; }
 .overlay.zooming::before, .overlay.zooming .ov-head, .overlay.zooming .ov-body > :not(.clue):not(.big-word) { opacity: 0; }
 .overlay::before, .ov-head, .ov-body > * { transition: opacity .25s; }
 
@@ -865,6 +865,8 @@ function zoomIn(ov) {
   const r = zoomFrom; zoomFrom = null;
   if (!r || reduceMotion() || !ov.animate) return;
   const sx = r.width / innerWidth, sy = r.height / innerHeight;
+  // Turn off the normal fade-in for this opening; switching it back on mid-way would replay it and jump.
+  ov.style.animation = "none";
   ov.classList.add("zooming");
   ov.animate([
     { transform: `translate(${r.left}px, ${r.top}px) scale(${sx}, ${sy})` },
@@ -887,7 +889,7 @@ function finishClue(result, winner) { state.used[view.id] = result; nextTurn(win
 function drawOverlay() {
   Sound.stopMusic();
   const ov = $("#overlay");
-  if (!view) { ov.hidden = true; ov.innerHTML = ""; return; }
+  if (!view) { ov.hidden = true; ov.innerHTML = ""; ov.style.animation = ""; return; }
   if (view.kind === "list") return drawList();
   if (view.kind === "scores") return drawScores();
   if (view.kind === "final") return drawFinal();
@@ -918,7 +920,7 @@ function drawOverlay() {
         buttons = `<button class="btn right big" data-judge="right" type="button">Correct, +$${amount.toLocaleString()}</button>
           <button class="btn wrong big" data-judge="wrong" type="button">Wrong${view.wager != null ? ", -$" + amount.toLocaleString() : ""}</button>`;
       } else {
-        who = `<p class="who">${view.out.length ? "Who buzzed in next?" : "Who buzzed in first?"}</p>`;
+        who = "";
         buttons = remaining().map(i => `<button class="btn big" data-pick="${i}" type="button"><kbd>${i + 1}</kbd> ${esc(playerUp(i))} (${nameOf(i)})</button>`).join("");
       }
       body = `${who}
